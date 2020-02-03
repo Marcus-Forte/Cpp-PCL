@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?fileVersion 4.0.0?>
+<cproject>
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="org.eclipse.cdt.core.default.config.1">
+			<storageModule buildSystemId="org.eclipse.cdt.core.defaultConfigDataProvider" id="org.eclipse.cdt.core.default.config.1" moduleId="org.eclipse.cdt.core.settings" name="Configuration">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GNU_ELF" point="org.eclipse.cdt.core.BinaryParser">
+						<attribute key="addr2line" value="addr2line"/>
+						<attribute key="c++filt" value="c++filt"/>
+					</extension>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.language.mapping">
+				<project-mappings/>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+			<storageModule moduleId="org.eclipse.cdt.core.pathentry">
+				<pathentry excluding="**/CMakeFiles/" kind="out" path=""/>
+				<pathentry kind="mac" name="vtkFiltersFlowPaths_AUTOINIT" path="" value="1(vtkFiltersParallelFlowPaths)"/>
+				<pathentry kind="mac" name="vtkIOExodus_AUTOINIT" path="" value="1(vtkIOParallelExodus)"/>
+				<pathentry kind="mac" name="vtkIOGeometry_AUTOINIT" path="" value="1(vtkIOMPIParallel)"/>
+				<pathentry kind="mac" name="vtkIOImage_AUTOINIT" path="" value="1(vtkIOMPIImage)"/>
+				<pathentry kind="mac" name="vtkIOParallel_AUTOINIT" path="" value="1(vtkIOMPIParallel)"/>
+				<pathentry kind="mac" name="vtkIOSQL_AUTOINIT" path="" value="2(vtkIOMySQL,vtkIOPostgreSQL)"/>
+				<pathentry kind="mac" name="vtkRenderingContext2D_AUTOINIT" path="" value="1(vtkRenderingContextOpenGL)"/>
+				<pathentry kind="mac" name="vtkRenderingCore_AUTOINIT" path="" value="3(vtkInteractionStyle,vtkRenderingFreeType,vtkRenderingOpenGL)"/>
+				<pathentry kind="mac" name="vtkRenderingFreeType_AUTOINIT" path="" value="2(vtkRenderingFreeTypeFontConfig,vtkRenderingMatplotlib)"/>
+				<pathentry kind="mac" name="vtkRenderingLIC_AUTOINIT" path="" value="1(vtkRenderingParallelLIC)"/>
+				<pathentry kind="mac" name="vtkRenderingVolume_AUTOINIT" path="" value="1(vtkRenderingVolumeOpenGL)"/>
+				<pathentry kind="mac" name="DISABLE_ENSENSO" path="" value=""/>
+				<pathentry kind="mac" name="DISABLE_DAVIDSDK" path="" value=""/>
+				<pathentry kind="mac" name="DISABLE_DSSDK" path="" value=""/>
+				<pathentry kind="mac" name="DISABLE_PCAP" path="" value=""/>
+				<pathentry kind="mac" name="DISABLE_PNG" path="" value=""/>
+				<pathentry kind="mac" name="DISABLE_LIBUSB_1_0" path="" value=""/>
+				<pathentry kind="mac" name="FLANN_STATIC" path="" value=""/>
+				<pathentry kind="mac" name="DISABLE_RSSDK" path="" value=""/>
+				<pathentry include="/usr/include/vtk-6.3" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/freetype2" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi/opal/mca/event/libevent2022/libevent" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/lib/x86_64-linux-gnu/openmpi/include/openmpi/opal/mca/event/libevent2022/libevent/include" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/lib/x86_64-linux-gnu/openmpi/include" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/python2.7" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/x86_64-linux-gnu" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/hdf5/openmpi" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/libxml2" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/jsoncpp" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/tcl" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/pcl-1.8" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/eigen3" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/ni" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/openni2" kind="inc" path="" system="true"/>
+				<pathentry include="/home/marcus/Workspace/Coding/Cmake/PCL/include" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/x86_64-linux-gnu/qt5" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/x86_64-linux-gnu/qt5/QtWidgets" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/x86_64-linux-gnu/qt5/QtGui" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/include/x86_64-linux-gnu/qt5/QtCore" kind="inc" path="" system="true"/>
+				<pathentry include="/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++" kind="inc" path="" system="true"/>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets">
+				<buildTargets>
+					<target name=": rebuild_cache" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>rebuild_cache</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name="[exe] PclTest" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>PclTest</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name="[exe] PclTest/fast" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>PclTest/fast</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name="Build" path="[Targets]/[exe] PclTest" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments>-C "/home/marcus/Workspace/Coding/Cmake/PCL/build" </buildArguments>
+						<buildTarget>PclTest</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name="Clean" path="[Targets]/[exe] PclTest" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/cmake</buildCommand>
+						<buildArguments>-E chdir "/home/marcus/Workspace/Coding/Cmake/PCL/build" "/usr/bin/cmake" -P "CMakeFiles/PclTest.dir/cmake_clean.cmake"</buildArguments>
+						<buildTarget></buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name=": edit_cache" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>edit_cache</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name=": all" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>all</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name=": clean" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>clean</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+				</buildTargets>
+			</storageModule>
+			<storageModule moduleId="scannerConfiguration">
+				<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.make.core.GCCStandardMakePerProjectProfile"/>
+				<profile id="org.eclipse.cdt.make.core.GCCStandardMakePerProjectProfile">
+					<buildOutputProvider>
+						<openAction enabled="true" filePath=""/>
+						<parser enabled="true"/>
+					</buildOutputProvider>
+					<scannerInfoProvider id="specsFile">
+						<runAction arguments="-E -P -v -dD ${plugin_state_location}/${specs_file}" command="/usr/bin/cc" useDefault="true"/>
+						<parser enabled="true"/>
+					</scannerInfoProvider>
+				</profile>
+				<profile id="org.eclipse.cdt.make.core.GCCStandardMakePerFileProfile">
+					<buildOutputProvider>
+						<openAction enabled="true" filePath=""/>
+						<parser enabled="true"/>
+					</buildOutputProvider>
+					<scannerInfoProvider id="makefileGenerator">
+						<runAction arguments="-f ${project_name}_scd.mk" command="/usr/bin/make" useDefault="true"/>
+						<parser enabled="true"/>
+					</scannerInfoProvider>
+				</profile>
+			</storageModule>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<project id="PclTest.null.1" name="PclTest"/>
+	</storageModule>
+</cproject>
