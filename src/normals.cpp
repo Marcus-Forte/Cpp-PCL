@@ -29,26 +29,31 @@ int main()
   ne.setInputCloud (cloud);
   ne.setSearchMethod (tree);
 //  ne.setKSearch(20);
-  ne.setRadiusSearch (0.2);
+  ne.setRadiusSearch (0.4);
   ne.compute (*normals);
   
 
-  float nx = 0 ,ny = 0 ,nz = 0;
-	
+  float nx,ny,nz;
+  float normals_sum = 0;
+	unsigned int valid_normals = 0;
 	std::cout << "size = " << normals->size() << std::endl;
 	for(int i=0;i<normals->size();++i){
 //	std::cout << "x normal = " << normals->points[i].normal_x << std::endl;
 
-	if(!std::isnan(normals->points[i].normal_x))
-	nx += (normals->points[i].normal_x);
-	if(!std::isnan(normals->points[i].normal_y))
-	ny += (normals->points[i].normal_y);
-	if(!std::isnan(normals->points[i].normal_z))
-	nz += (normals->points[i].normal_z);
+	nx = normals->points[i].normal_x;
+	ny = normals->points[i].normal_y;
+	nz = normals->points[i].normal_z;
+
+	std::cout << nx << "	" << ny << "	" << nz << std::endl;
+	
+	if(!std::isnan(nx) && !std::isnan(ny) && !std::isnan(nz)) {
+	normals_sum += sqrt(nx*nx + ny*ny + nz*nz);
+	valid_normals++;
 
 	}
+	}
 
-	std::cout << "area = " << nx << " " << ny << " " << nz << std::endl;
+		std::cout << "area = " << normals_sum << "valid normals" << valid_normals << std::endl;
 
   pcl::PointCloud<pcl::PointNormal>::Ptr cloud_out(new pcl::PointCloud<pcl::PointNormal>);
  pcl::concatenateFields(*cloud,*normals,*cloud_out);
