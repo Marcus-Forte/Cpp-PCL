@@ -3,3 +3,4 @@
 *.m~
 *.pcd
 /build/
+bin
