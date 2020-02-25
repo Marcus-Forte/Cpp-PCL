@@ -111,6 +111,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named grid
+
+# Build rule for target.
+grid: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 grid
+.PHONY : grid
+
+# fast build rule for target.
+grid/fast:
+	$(MAKE) -f CMakeFiles/grid.dir/build.make CMakeFiles/grid.dir/build
+.PHONY : grid/fast
+
+#=============================================================================
 # Target rules for targets named normals
 
 # Build rule for target.
@@ -135,6 +148,33 @@ volume: cmake_check_build_system
 volume/fast:
 	$(MAKE) -f CMakeFiles/volume.dir/build.make CMakeFiles/volume.dir/build
 .PHONY : volume/fast
+
+src/grid.o: src/grid.cpp.o
+
+.PHONY : src/grid.o
+
+# target to build an object file
+src/grid.cpp.o:
+	$(MAKE) -f CMakeFiles/grid.dir/build.make CMakeFiles/grid.dir/src/grid.cpp.o
+.PHONY : src/grid.cpp.o
+
+src/grid.i: src/grid.cpp.i
+
+.PHONY : src/grid.i
+
+# target to preprocess a source file
+src/grid.cpp.i:
+	$(MAKE) -f CMakeFiles/grid.dir/build.make CMakeFiles/grid.dir/src/grid.cpp.i
+.PHONY : src/grid.cpp.i
+
+src/grid.s: src/grid.cpp.s
+
+.PHONY : src/grid.s
+
+# target to generate assembly for a file
+src/grid.cpp.s:
+	$(MAKE) -f CMakeFiles/grid.dir/build.make CMakeFiles/grid.dir/src/grid.cpp.s
+.PHONY : src/grid.cpp.s
 
 src/normals.o: src/normals.cpp.o
 
@@ -198,8 +238,12 @@ help:
 	@echo "... depend"
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
+	@echo "... grid"
 	@echo "... normals"
 	@echo "... volume"
+	@echo "... src/grid.o"
+	@echo "... src/grid.i"
+	@echo "... src/grid.s"
 	@echo "... src/normals.o"
 	@echo "... src/normals.i"
 	@echo "... src/normals.s"

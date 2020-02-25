@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/volume.dir/src/volume.cpp.o"
-  "bin/volume.pdb"
-  "bin/volume"
+  "../bin/volume.pdb"
+  "../bin/volume"
 )
 
 # Per-language clean rules from dependency scanning.

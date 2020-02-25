@@ -29,7 +29,7 @@ int main()
   ne.setInputCloud (cloud);
   ne.setSearchMethod (tree);
 //  ne.setKSearch(20);
-  ne.setRadiusSearch (0.4);
+  ne.setRadiusSearch (1);
   ne.compute (*normals);
   
 
@@ -60,6 +60,7 @@ int main()
  
 	  pcl::io::savePCDFileASCII(WORKINGPATH "normals_output_ascii.pcd",*cloud_out);
   pcl::io::savePCDFileBinary(WORKINGPATH "normals_output_bin.pcd",*cloud_out);
+  pcl::io::savePCDFileBinaryCompressed(WORKINGPATH "normals_output_bin_compressed",*cloud_out);
 
   return 0;
 

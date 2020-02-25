@@ -3,7 +3,7 @@ project(PclTest)
 
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #set (CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/bin)
-set (EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+set (EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
 find_package(PCL 1.7 REQUIRED)
 
 
@@ -21,7 +21,7 @@ link_libraries(${PCL_LIBRARIES})
 
 add_executable(normals src/normals.cpp)
 add_executable(volume src/volume.cpp)
-
+add_executable(grid src/grid.cpp)
 
 
 
