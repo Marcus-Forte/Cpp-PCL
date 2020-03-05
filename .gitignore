@@ -4,3 +4,4 @@
 *.pcd
 /build/
 bin
+.vscode

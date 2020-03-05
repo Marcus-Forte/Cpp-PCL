@@ -22,6 +22,7 @@ link_libraries(${PCL_LIBRARIES})
 add_executable(normals src/normals.cpp)
 add_executable(volume src/volume.cpp)
 add_executable(grid src/grid.cpp)
+add_executable(plane src/plane.cpp)
 
 
 
