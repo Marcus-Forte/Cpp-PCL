@@ -3,7 +3,7 @@
 #include <pcl/io/pcd_io.h>
 #include <iostream>
 
-#define WORKINGPATH "/home/projeto/Workspace/Coding/C++/CMake/PCL/"
+#define WORKINGPATH "./"
 
 int main(){
 
@@ -14,15 +14,17 @@ int main(){
  }
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-
-
- pcl::GridMinimum<pcl::PointXYZ> grid(0.1); //resolution
+ 
+ std::cout << "Digite Resolução: ";
+ float res;
+ std::cin >> res;
+ pcl::GridMinimum<pcl::PointXYZ> grid(res); //resolution
  grid.setInputCloud(cloud);
  grid.filter(*cloud_filtered);
 
  
  pcl::io::savePCDFileBinary( WORKINGPATH "gridded.pcd", *cloud_filtered);
- PCL_INFO("Salvo com sucesso!");
+ PCL_INFO("Salvo com sucesso!\n");
 
 
 
