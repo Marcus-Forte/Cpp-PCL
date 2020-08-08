@@ -14,7 +14,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories(include)
 add_definitions(${PCL_DEFINITIONS})
-link_libraries(${PCL_LIBRARIES})
+link_libraries(${PCL_LIBRARIES} -pthread)
 
 #add_executable (PclTest ${SOURCES})
 #target_include_directories(PclTest PUBLIC "include/")
