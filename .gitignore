@@ -1,7 +1,7 @@
-*o
-*.swp
-*.m~
-*.pcd
-/build/
-bin
+
+
+
+
+build/
+bin/
 .vscode
