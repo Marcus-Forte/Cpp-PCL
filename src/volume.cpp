@@ -15,6 +15,9 @@
 #include <thread>
 #include "txt2pc.h"
 
+// Transformações
+#include <pcl/common/transforms.h>
+
 
 std::atomic<bool> done{false};
 
@@ -58,7 +61,7 @@ void concHULL(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in, pcl::Pol
 		hull.setAlpha(alpha);
 		hull.reconstruct(*mesh);
 		std::cout << "finished thread" << std::endl;
-		std::cout << "Mesh size " << mesh->polygons.size() << std::endl;
+		std::cout << "Alpha : " << alpha << "| Mesh size: " << mesh->polygons.size() << std::endl;
 
 		done = true;	
 
@@ -77,8 +80,8 @@ int main(int argc, char** argv){
 		std::string cloudfile = argv[1];
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected (new pcl::PointCloud<pcl::PointXYZ>);
+		// pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+		// pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected (new pcl::PointCloud<pcl::PointXYZ>);
 
 
 		if ( pcl::io::loadPCDFile(cloudfile,*cloud) == -1){
@@ -87,39 +90,39 @@ int main(int argc, char** argv){
 		} 
 
 
-		pcl::PassThrough<pcl::PointXYZ> pass;
-		pass.setInputCloud (cloud);
-		pass.setFilterFieldName ("z");
-		pass.setFilterLimits (0, 50.0);
-		pass.filter (*cloud_filtered);
-		std::cerr << "PointCloud after filtering has: "
-				<< cloud_filtered->points.size () << " data points." << std::endl;
+		// pcl::PassThrough<pcl::PointXYZ> pass;
+		// pass.setInputCloud (cloud);
+		// pass.setFilterFieldName ("z");
+		// pass.setFilterLimits (0, 50.0);
+		// pass.filter (*cloud_filtered);
+		// std::cerr << "PointCloud after filtering has: "
+		// 		<< cloud_filtered->points.size () << " data points." << std::endl;
 
-		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-		pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-		// Create the segmentation object
-		pcl::SACSegmentation<pcl::PointXYZ> seg;
-		// Optional
-		seg.setOptimizeCoefficients (true);
-		// Mandatory
-		seg.setModelType (pcl::SACMODEL_PLANE);
-		seg.setMethodType (pcl::SAC_RANSAC);
-		seg.setDistanceThreshold (0.01);
+		// pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+		// pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+		// // Create the segmentation object
+		// pcl::SACSegmentation<pcl::PointXYZ> seg;
+		// // Optional
+		// seg.setOptimizeCoefficients (true);
+		// // Mandatory
+		// seg.setModelType (pcl::SACMODEL_PLANE);
+		// seg.setMethodType (pcl::SAC_RANSAC);
+		// seg.setDistanceThreshold (0.01);
 
-		seg.setInputCloud (cloud_filtered);
-		seg.segment (*inliers, *coefficients);
-		std::cerr << "PointCloud after segmentation has: "
-				<< inliers->indices.size () << " inliers." << std::endl;
+		// seg.setInputCloud (cloud_filtered);
+		// seg.segment (*inliers, *coefficients);
+		// std::cerr << "PointCloud after segmentation has: "
+		// 		<< inliers->indices.size () << " inliers." << std::endl;
 
-		// Project the model inliers
-		pcl::ProjectInliers<pcl::PointXYZ> proj;
-		proj.setModelType (pcl::SACMODEL_PLANE);
-		proj.setIndices (inliers);
-		proj.setInputCloud (cloud_filtered);
-		proj.setModelCoefficients (coefficients);
-		proj.filter (*cloud_projected);
-		std::cerr << "PointCloud after projection has: "
-				<< cloud_projected->points.size () << " data points." << std::endl;
+		// // Project the model inliers
+		// pcl::ProjectInliers<pcl::PointXYZ> proj;
+		// proj.setModelType (pcl::SACMODEL_PLANE);
+		// proj.setIndices (inliers);
+		// proj.setInputCloud (cloud_filtered);
+		// proj.setModelCoefficients (coefficients);
+		// proj.filter (*cloud_projected);
+		// std::cerr << "PointCloud after projection has: "
+		// 		<< cloud_projected->points.size () << " data points." << std::endl;
 
 
 
@@ -152,7 +155,7 @@ int main(int argc, char** argv){
 		std::cout << "Mesh saved" << std::endl;
 
 
-		return 0;
+		
 
 		// 		pcl::ConcaveHull<pcl::PointXYZ> concave;
 		// 		concave.setInputCloud(cloud);
@@ -170,11 +173,20 @@ int main(int argc, char** argv){
 		// 		std::cout << "Concave Mesh saved" << std::endl;
 		// 		pcl::io::savePCDFileASCII("cloud_projected.pcd",*cloud_projected);
 
-		float alpha = 0.1;
+		float alpha = 0.001;
 		viewer.setBackgroundColor(0,0,0);
-		viewer.addPointCloud(cloud,"nuvem");
+		// viewer.addPointCloud(cloud,"nuvem");
 		pcl::PolygonMesh::Ptr mesh (new pcl::PolygonMesh);
-
+		// pcl::PointCloud<pcl::PointXYZ>::Ptr tf_cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+	
+		// Eigen::Affine3f transform;
+		// Eigen::Vector3f vec;
+		// vec[0] = 1;
+		// vec[1] = 1;
+		// vec[2] = 1;
+		// transform.translation() = vec;
+		// pcl::transformPointCloud(*cloud,*tf_cloud,transform);
+		// viewer.addPointCloud(tf_cloud,"nuvem2");
 
 		// bool is false up to here
 		//		concHULL(cloud,mesh,alpha);
@@ -189,14 +201,14 @@ int main(int argc, char** argv){
 
 						viewer.removePolygonMesh("mesh");
 						viewer.addPolygonMesh(*mesh,"mesh");
-						alpha += 0.01;
+						alpha += 0.001;
 						std::thread t(concHULL,cloud,mesh,alpha);
 						t.detach();
 						done = false;
 				}
 
 
-				std::cout <<"Loop" << std::endl;
+				// std::cout <<"Loop" << std::endl;
 				//				sleep(1);
 
 		}
