@@ -196,7 +196,7 @@ int main(int argc, char** argv){
 				if(done){
 						viewer.removePolygonMesh("mesh");
 						viewer.addPolygonMesh(*mesh,"mesh");
-						alpha += 5;
+						alpha += 80;
 						std::thread t(concHULL,cloud,mesh,alpha);
 						t.detach();
 						done = false;
