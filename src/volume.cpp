@@ -18,8 +18,60 @@
 // Transformações
 #include <pcl/common/transforms.h>
 
+// VTK
+#include <pcl/surface/vtk_smoothing/vtk_utils.h>
+#include <vtkPolyData.h>
+#include <vtkMassProperties.h>
+#include <vtkFillHolesFilter.h>
+#include <vtkTriangleFilter.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkDelaunay3D.h>
+#include <vtkUnstructuredGrid.h>
+#include <vtkCleanPolyData.h>
+
+/* LINKS
+
+
+https://lorensen.github.io/VTKExamples/site/Cxx/Modelling/Delaunay3D/
+
+
+*/
 
 std::atomic<bool> done{false};
+
+
+float getVolumefromMesh(const pcl::PolygonMesh::Ptr& pclMesh){
+	vtkSmartPointer<vtkPolyData> vtkMesh = vtkSmartPointer<vtkPolyData>::New();
+
+		pcl::VTKUtils::convertToVTK(*pclMesh,vtkMesh); //converte p/ vtk
+
+		// Mais filtros podem ser adicionados aqui
+
+				vtkSmartPointer<vtkFillHolesFilter> fillholes = vtkSmartPointer<vtkFillHolesFilter>::New();
+		fillholes->SetInputData(vtkMesh);
+		fillholes->SetHoleSize(10);
+		fillholes->Update();
+
+		// vtkSmartPointer<vtkTriangleFilter> triangleFilter = vtkSmartPointer<vtkTriangleFilter>::New();
+		// triangleFilter->SetInputConnection(fillholes->GetOutputPort());
+		// triangleFilter->Update();
+
+		vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New(); //calcula normais
+		// normals->SetInputData(vtkMesh);
+		normals->SetInputConnection(fillholes->GetOutputPort());
+		normals->ConsistencyOn();
+		normals->SplittingOff();
+		normals->Update();
+
+
+		vtkSmartPointer<vtkMassProperties> massProperties = vtkSmartPointer<vtkMassProperties>::New(); //calcula volume
+		massProperties->SetInputConnection(normals->GetOutputPort());
+		massProperties->Update();
+		// std::cout << "Vtk volume : " << massProperties->GetVolume() << std::endl;
+		return massProperties->GetVolume() ;
+
+
+}
 
 
 
@@ -62,7 +114,7 @@ void concHULL(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in, pcl::Pol
 		hull.reconstruct(*mesh);
 		std::cout << "finished thread" << std::endl;
 		std::cout << "Alpha : " << alpha << "| Mesh size: " << mesh->polygons.size() << std::endl;
-
+		std::cout << "Volume : " << getVolumefromMesh(mesh) << std::endl;
 		done = true;	
 
 }
@@ -90,58 +142,6 @@ int main(int argc, char** argv){
 		} 
 
 
-		// pcl::PassThrough<pcl::PointXYZ> pass;
-		// pass.setInputCloud (cloud);
-		// pass.setFilterFieldName ("z");
-		// pass.setFilterLimits (0, 50.0);
-		// pass.filter (*cloud_filtered);
-		// std::cerr << "PointCloud after filtering has: "
-		// 		<< cloud_filtered->points.size () << " data points." << std::endl;
-
-		// pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-		// pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
-		// // Create the segmentation object
-		// pcl::SACSegmentation<pcl::PointXYZ> seg;
-		// // Optional
-		// seg.setOptimizeCoefficients (true);
-		// // Mandatory
-		// seg.setModelType (pcl::SACMODEL_PLANE);
-		// seg.setMethodType (pcl::SAC_RANSAC);
-		// seg.setDistanceThreshold (0.01);
-
-		// seg.setInputCloud (cloud_filtered);
-		// seg.segment (*inliers, *coefficients);
-		// std::cerr << "PointCloud after segmentation has: "
-		// 		<< inliers->indices.size () << " inliers." << std::endl;
-
-		// // Project the model inliers
-		// pcl::ProjectInliers<pcl::PointXYZ> proj;
-		// proj.setModelType (pcl::SACMODEL_PLANE);
-		// proj.setIndices (inliers);
-		// proj.setInputCloud (cloud_filtered);
-		// proj.setModelCoefficients (coefficients);
-		// proj.filter (*cloud_projected);
-		// std::cerr << "PointCloud after projection has: "
-		// 		<< cloud_projected->points.size () << " data points." << std::endl;
-
-
-
-		//pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
-		pcl::visualization::PCLVisualizer viewer("3D Viewer");
-
-
-
-
-		//Concave and Convex Hull
-		//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull (new pcl::PointCloud<pcl::PointXYZ>); //Chull
-
-
-		//		pcl::PolygonMesh concave_mesh;
-		/*pcl::ConcaveHull<pcl::PointXYZ> chull;
-		  chull.setInputCloud(cloud);
-		  chull.setAlpha(0.1);
-		  chull.reconstruct(*cloud_hull);
-		  */
 
 		pcl::PolygonMesh::Ptr convex_mesh (new pcl::PolygonMesh);
 		pcl::ConvexHull<pcl::PointXYZ> convex;
@@ -152,64 +152,56 @@ int main(int argc, char** argv){
 		std::cout << "Number of meshes : " <<convex_mesh->polygons.size() << std::endl;
 		std::cout << "My volume = " << volumeOfMesh(convex_mesh) << std::endl;
 		pcl::io::savePLYFile("convex.ply",*convex_mesh);
-		std::cout << "Mesh saved" << std::endl;
+		std::cout << "Mesh saved" << std::endl;	
 
+				//		pcl::PolygonMesh concave_mesh;
+		pcl::PolygonMesh::Ptr concave_mesh (new pcl::PolygonMesh);
+		pcl::ConcaveHull<pcl::PointXYZ> chull;
+		chull.setInputCloud(cloud);
+		chull.setAlpha(0.1);
+		chull.reconstruct(*concave_mesh);
+		  
 
+		//TODO como pegar a saida do delaunay3D do vtk p/ plotar mesh
+	
+		// vtkSmartPointer<vtkCleanPolyData> vtkCleaner = vtkSmartPointer<vtkCleanPolyData>::New();
+		// vtkCleaner->SetInputData(vtkMesh);
+		// vtkCleaner->Update();
+
+		// vtkSmartPointer<vtkDelaunay3D> delaunay = vtkSmartPointer<vtkDelaunay3D>::New();
+		// delaunay->SetInputData(vtkMesh);
+		// delaunay->Update();
 		
+		// vtkSmartPointer<vtkUnstructuredGrid> d_output = vtkSmartPointer<vtkUnstructuredGrid>::New();
+		// d_output = delaunay->GetOutput();
 
-		// 		pcl::ConcaveHull<pcl::PointXYZ> concave;
-		// 		concave.setInputCloud(cloud);
+		// std::cout << d_output->GetNumberOfCells() << std::endl;
+		// d_output->GetCell(0);
+		
+		// return 0;
 
-		//float a = concave.getTotalVolume();	
 
-		//		std::cout << "ConvHull Volume = " << convex.getTotalVolume() << std::endl;
-
-		//	viewer.showCloud(cloud);
-		//viewer2.showCloud(cloud);
-
-		// 
-		// 
-		// 		pcl::io::savePLYFile("concave.ply",concave_mesh);
-		// 		std::cout << "Concave Mesh saved" << std::endl;
-		// 		pcl::io::savePCDFileASCII("cloud_projected.pcd",*cloud_projected);
-
+		pcl::visualization::PCLVisualizer viewer("3D Viewer");
+	
 		float alpha = 0.001;
 		viewer.setBackgroundColor(0,0,0);
 		// viewer.addPointCloud(cloud,"nuvem");
 		pcl::PolygonMesh::Ptr mesh (new pcl::PolygonMesh);
-		// pcl::PointCloud<pcl::PointXYZ>::Ptr tf_cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-	
-		// Eigen::Affine3f transform;
-		// Eigen::Vector3f vec;
-		// vec[0] = 1;
-		// vec[1] = 1;
-		// vec[2] = 1;
-		// transform.translation() = vec;
-		// pcl::transformPointCloud(*cloud,*tf_cloud,transform);
-		// viewer.addPointCloud(tf_cloud,"nuvem2");
 
-		// bool is false up to here
-		//		concHULL(cloud,mesh,alpha);
-
-		std::thread t (concHULL,cloud,mesh,alpha);
+		std::thread t (concHULL,cloud,mesh,alpha); //usamos thread p/ poder mover a camera enquanto ele calcula
 		t.join();
 		while(!viewer.wasStopped()){
 				viewer.spinOnce(100);
 
 				if(done){
-
-
 						viewer.removePolygonMesh("mesh");
 						viewer.addPolygonMesh(*mesh,"mesh");
-						alpha += 0.001;
+						alpha += 5;
 						std::thread t(concHULL,cloud,mesh,alpha);
 						t.detach();
 						done = false;
 				}
 
-
-				// std::cout <<"Loop" << std::endl;
-				//				sleep(1);
 
 		}
 		return 0;
