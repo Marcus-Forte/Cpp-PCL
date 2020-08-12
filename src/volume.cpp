@@ -28,7 +28,8 @@
 #include <vtkDelaunay3D.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkCleanPolyData.h>
-
+#include <vtkTetra.h>
+#include <vtkPoints.h>
 /* LINKS
 
 
@@ -140,6 +141,21 @@ int main(int argc, char** argv){
 				PCL_ERROR("Nao deu pra abrir arquivo \n");
 				return -1;
 		} 
+
+		vtkSmartPointer<vtkTetra> Tetra = vtkSmartPointer<vtkTetra>::New();
+		vtkSmartPointer<vtkPoints> T_pontos = vtkSmartPointer<vtkPoints>::New();
+		float x0[3] = {0,0,0};
+		float x1[3] = {0,0,0};
+		float x2[3] = {0,0,0};
+		float x3[3] = {0,0,0};
+	//	T_pontos->SetPoint(0,x0);
+
+
+
+			
+		Tetra->PrintSelf(std::cout,vtkIndent(2));
+
+		return 0;
 
 
 
