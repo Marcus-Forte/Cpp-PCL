@@ -142,21 +142,9 @@ int main(int argc, char** argv){
 				return -1;
 		} 
 
-		vtkSmartPointer<vtkTetra> Tetra = vtkSmartPointer<vtkTetra>::New();
-		vtkSmartPointer<vtkPoints> T_pontos = vtkSmartPointer<vtkPoints>::New();
-		float x0[3] = {0,0,0};
-		float x1[3] = {0,0,0};
-		float x2[3] = {0,0,0};
-		float x3[3] = {0,0,0};
-	//	T_pontos->SetPoint(0,x0);
-
-
-
+		
 			
-		Tetra->PrintSelf(std::cout,vtkIndent(2));
-
-		return 0;
-
+		
 
 
 		pcl::PolygonMesh::Ptr convex_mesh (new pcl::PolygonMesh);
@@ -165,36 +153,61 @@ int main(int argc, char** argv){
 		convex.setInputCloud(cloud);
 		convex.reconstruct(*convex_mesh);
 		std::cout << "Convex Hull Volume " << convex.getTotalVolume() << std::endl;
-		std::cout << "Number of meshes : " <<convex_mesh->polygons.size() << std::endl;
+		std::cout << "Concave - Number of meshes : " <<convex_mesh->polygons.size() << std::endl;
 		std::cout << "My volume = " << volumeOfMesh(convex_mesh) << std::endl;
 		pcl::io::savePLYFile("convex.ply",*convex_mesh);
 		std::cout << "Mesh saved" << std::endl;	
 
 				//		pcl::PolygonMesh concave_mesh;
-		pcl::PolygonMesh::Ptr concave_mesh (new pcl::PolygonMesh);
-		pcl::ConcaveHull<pcl::PointXYZ> chull;
-		chull.setInputCloud(cloud);
-		chull.setAlpha(0.1);
-		chull.reconstruct(*concave_mesh);
+		// pcl::PolygonMesh::Ptr concave_mesh (new pcl::PolygonMesh);
+		// pcl::ConcaveHull<pcl::PointXYZ> chull;
+		// chull.setInputCloud(cloud);
+		// chull.setAlpha(0.1);
+		// chull.reconstruct(*concave_mesh);
 		  
 
+		vtkSmartPointer<vtkPolyData> vtkMesh = vtkSmartPointer<vtkPolyData>::New();
+		pcl::VTKUtils::convertToVTK(*convex_mesh,vtkMesh);
 		//TODO como pegar a saida do delaunay3D do vtk p/ plotar mesh
 	
-		// vtkSmartPointer<vtkCleanPolyData> vtkCleaner = vtkSmartPointer<vtkCleanPolyData>::New();
-		// vtkCleaner->SetInputData(vtkMesh);
-		// vtkCleaner->Update();
+		vtkSmartPointer<vtkCleanPolyData> vtkCleaner = vtkSmartPointer<vtkCleanPolyData>::New();
+		vtkCleaner->SetInputData(vtkMesh);
+		vtkCleaner->Update();
 
-		// vtkSmartPointer<vtkDelaunay3D> delaunay = vtkSmartPointer<vtkDelaunay3D>::New();
-		// delaunay->SetInputData(vtkMesh);
-		// delaunay->Update();
-		
-		// vtkSmartPointer<vtkUnstructuredGrid> d_output = vtkSmartPointer<vtkUnstructuredGrid>::New();
-		// d_output = delaunay->GetOutput();
+		vtkSmartPointer<vtkDelaunay3D> delaunay = vtkSmartPointer<vtkDelaunay3D>::New();
+		delaunay->SetInputData(vtkMesh);
+		delaunay->Update();
 
-		// std::cout << d_output->GetNumberOfCells() << std::endl;
-		// d_output->GetCell(0);
 		
-		// return 0;
+		vtkSmartPointer<vtkUnstructuredGrid> d_output = vtkSmartPointer<vtkUnstructuredGrid>::New();
+		d_output = delaunay->GetOutput();
+		int n_cells = d_output->GetNumberOfCells();
+			
+		vtkSmartPointer<vtkPoints> pontos = vtkSmartPointer<vtkPoints>::New();
+		
+		vtkIdList * IDs;
+		d_output->GetCellPoints(0,IDs);
+	//	std::cout << *IDs << std::endl;
+
+
+
+		return 0;
+
+		double *p0;
+		double *p1;
+		double *p2;
+		double *p3;
+
+		for (int j = 0; j < n_cells; ++j)
+		{
+			pontos = d_output->GetCell(j)->GetPoints();
+			for (int i=0;i<4;++i){
+			
+			}
+		}
+
+		// vtkTetra::ComputeVolume
+		return 0;
 
 
 		pcl::visualization::PCLVisualizer viewer("3D Viewer");

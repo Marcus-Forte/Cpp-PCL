@@ -21,8 +21,9 @@ link_libraries(${PCL_LIBRARIES} -pthread)
 
 add_executable(normals src/normals.cpp)
 add_executable(volume src/volume.cpp)
-add_executable(grid src/grid.cpp)
+add_executable(subsample src/subsample.cpp)
 add_executable(plane src/plane.cpp)
+add_executable(visualize src/visualize.cpp)
 
 
 
