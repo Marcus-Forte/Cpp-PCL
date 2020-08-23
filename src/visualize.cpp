@@ -18,6 +18,9 @@ std::mutex g_mutex;
 
 // thread here
 // TODO por alguma razão nuvens RGB (kinect) dão problema
+// TODO Implementar Pause, resume ..
+// TODO cores !
+// TODO velocidade flexivel
 void slow_copy(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr tgt, float delay)
 {
 
@@ -32,7 +35,7 @@ void slow_copy(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &src, pcl::Poin
 	for (int i = 0; i < size; ++i)
 	{
 		tgt->points[i] = src->points[i];
-		std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+		std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
 	}
 
 	std::cout << "finished" << std::endl;
@@ -152,12 +155,12 @@ int main(int argc, char **argv)
 	for (int i = 0; i < color_cloud->size(); ++i)
 	{
 
-		// if (color_cloud->points[i].r == 0 && color_cloud->points[i].g == 0 && color_cloud->points[i].b == 0)
-		// {
-		// 	color_cloud->points[i].r = 255;
-		// 	color_cloud->points[i].g = 255;
-		// 	color_cloud->points[i].b = 255;
-		// }
+		if (color_cloud->points[i].r == 0 && color_cloud->points[i].g == 0 && color_cloud->points[i].b == 0)
+		{
+			color_cloud->points[i].r = 255;
+			color_cloud->points[i].g = 255;
+			color_cloud->points[i].b = 255;
+		}
 	}
 
 	std::string arg(argv[1]);
