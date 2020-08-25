@@ -15,6 +15,12 @@
 #include <thread>
 #include "txt2pc.h"
 
+// Utilidades (Classe)
+#include "PCUtils.h"
+
+// Voxel
+#include <pcl/filters/voxel_grid.h>
+
 // Transformações
 #include <pcl/common/transforms.h>
 
@@ -30,7 +36,11 @@
 #include <vtkCleanPolyData.h>
 #include <vtkTetra.h>
 #include <vtkPoints.h>
+
 /* LINKS
+
+
+
 
 
 https://lorensen.github.io/VTKExamples/site/Cxx/Modelling/Delaunay3D/
@@ -123,13 +133,15 @@ void concHULL(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in, pcl::Pol
 
 
 int main(int argc, char** argv){
-		//cloud = ReadTxt("pontos.txt");
+		
 
 		if(argc < 2){
 				std::cerr << "Please give an .pcd argument" << std::endl;
 				exit(-1);
 		}
 
+
+		// std::string cloudfile = "clouds/1mCubo.pcd";
 		std::string cloudfile = argv[1];
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
@@ -140,17 +152,48 @@ int main(int argc, char** argv){
 		if ( pcl::io::loadPCDFile(cloudfile,*cloud) == -1){
 				PCL_ERROR("Nao deu pra abrir arquivo \n");
 				return -1;
-		} 
+		}
+		// Filter cloud (voxel grid)
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>); 
+
+		pcl::VoxelGrid<pcl::PointXYZ> sor;
+		sor.setInputCloud(cloud);
+		float res = 0.05;
+		sor.setLeafSize(res,res,res);
+		sor.filter(*cloud_filtered);
+
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr floor (new pcl::PointCloud<pcl::PointXYZ>); 
+
+
+		PCUtils::makeFloor(cloud_filtered,floor,0.8);
 
 		
-			
+
+		// PCL_INFO("floored size = %d",floor->size());
+
+		// PCUtils::quickView(cloud_filtered);
+
+		// PCUtils::quickView(floor);
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr merged (new pcl::PointCloud<pcl::PointXYZ>); 
+
+		*merged = *cloud_filtered + *floor;
+
+
+		PCUtils::quickView(merged);
+
+
+		
+		return 0;
 		
 
 
 		pcl::PolygonMesh::Ptr convex_mesh (new pcl::PolygonMesh);
 		pcl::ConvexHull<pcl::PointXYZ> convex;
 		convex.setComputeAreaVolume(true);
-		convex.setInputCloud(cloud);
+		convex.setInputCloud(cloud_filtered);
 		convex.reconstruct(*convex_mesh);
 		std::cout << "Convex Hull Volume " << convex.getTotalVolume() << std::endl;
 		std::cout << "Concave - Number of meshes : " <<convex_mesh->polygons.size() << std::endl;
@@ -158,74 +201,45 @@ int main(int argc, char** argv){
 		pcl::io::savePLYFile("convex.ply",*convex_mesh);
 		std::cout << "Mesh saved" << std::endl;	
 
-				//		pcl::PolygonMesh concave_mesh;
-		// pcl::PolygonMesh::Ptr concave_mesh (new pcl::PolygonMesh);
-		// pcl::ConcaveHull<pcl::PointXYZ> chull;
-		// chull.setInputCloud(cloud);
-		// chull.setAlpha(0.1);
-		// chull.reconstruct(*concave_mesh);
-		  
-
-		vtkSmartPointer<vtkPolyData> vtkMesh = vtkSmartPointer<vtkPolyData>::New();
-		pcl::VTKUtils::convertToVTK(*convex_mesh,vtkMesh);
-		//TODO como pegar a saida do delaunay3D do vtk p/ plotar mesh
-	
-		vtkSmartPointer<vtkCleanPolyData> vtkCleaner = vtkSmartPointer<vtkCleanPolyData>::New();
-		vtkCleaner->SetInputData(vtkMesh);
-		vtkCleaner->Update();
-
-		vtkSmartPointer<vtkDelaunay3D> delaunay = vtkSmartPointer<vtkDelaunay3D>::New();
-		delaunay->SetInputData(vtkMesh);
-		delaunay->Update();
-
-		
-		vtkSmartPointer<vtkUnstructuredGrid> d_output = vtkSmartPointer<vtkUnstructuredGrid>::New();
-		d_output = delaunay->GetOutput();
-		int n_cells = d_output->GetNumberOfCells();
-			
-		vtkSmartPointer<vtkPoints> pontos = vtkSmartPointer<vtkPoints>::New();
-		
-		vtkIdList * IDs;
-		d_output->GetCellPoints(0,IDs);
-	//	std::cout << *IDs << std::endl;
-
-
-
-		return 0;
-
-		double *p0;
-		double *p1;
-		double *p2;
-		double *p3;
-
-		for (int j = 0; j < n_cells; ++j)
-		{
-			pontos = d_output->GetCell(j)->GetPoints();
-			for (int i=0;i<4;++i){
-			
-			}
-		}
-
-		// vtkTetra::ComputeVolume
-		return 0;
-
 
 		pcl::visualization::PCLVisualizer viewer("3D Viewer");
+		viewer.setCameraPosition(-6.61, -4.33, 2.7, 1.0, 1, 1);
+		viewer.setSize(1920, 1080);
+		//viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud");
+
+
+		int v1,v2,v3;
+
+		
+		viewer.createViewPort(0,0,0.3,1,v1);
+		viewer.createViewPort(0.3,0,0.6,1,v2);
+		viewer.createViewPort(0.6,0,1,1,v3);
+
+		// viewer.addPolygonMesh(*convex_mesh,"mesh",0);
 	
-		float alpha = 0.001;
-		viewer.setBackgroundColor(0,0,0);
-		// viewer.addPointCloud(cloud,"nuvem");
+		float alpha = 0.1;
+		viewer.setBackgroundColor(0,0,0,0);
+		
+
+		viewer.addCoordinateSystem(1,"ref");
+		viewer.addPointCloud(cloud,"cloud in",v1);
+		viewer.addPointCloud(cloud_filtered,"cloud filtered",v2);
+		// viewer.addPolygonMesh(*convex_mesh,"conv mesh",v2);
+		
+
+
+
 		pcl::PolygonMesh::Ptr mesh (new pcl::PolygonMesh);
 
-		std::thread t (concHULL,cloud,mesh,alpha); //usamos thread p/ poder mover a camera enquanto ele calcula
+		std::thread t (concHULL,cloud_filtered,mesh,alpha); //usamos thread p/ poder mover a camera enquanto ele calcula
 		t.join();
 		while(!viewer.wasStopped()){
-				viewer.spinOnce(100);
+				viewer.spinOnce(100,true);
 
 				if(done){
 						viewer.removePolygonMesh("mesh");
-						viewer.addPolygonMesh(*mesh,"mesh");
-						alpha += 80;
+						viewer.addPolygonMesh(*mesh,"mesh",v3);
+						alpha += 0.01;
 						std::thread t(concHULL,cloud,mesh,alpha);
 						t.detach();
 						done = false;

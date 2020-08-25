@@ -19,11 +19,16 @@ link_libraries(${PCL_LIBRARIES} -pthread)
 #add_executable (PclTest ${SOURCES})
 #target_include_directories(PclTest PUBLIC "include/")
 
+add_library(Utils src/PCUtils.cpp)
+
 add_executable(normals src/normals.cpp)
 add_executable(volume src/volume.cpp)
+target_link_libraries(volume Utils)
 add_executable(subsample src/subsample.cpp)
 add_executable(plane src/plane.cpp)
 add_executable(visualize src/visualize.cpp)
+
+
 
 
 
