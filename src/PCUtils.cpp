@@ -86,7 +86,7 @@ void PCUtils::makeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_in,pcl:
 // Blocking
 void PCUtils::quickView(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in){
 
-    pcl::visualization::PCLVisualizer::Ptr viewer = pcl::make_shared<pcl::visualization::PCLVisualizer>();
+    pcl::visualization::PCLVisualizer::Ptr viewer = pcl::make_shared<pcl::visualization::PCLVisualizer>("quick viewer");
 
     viewer->addPointCloud(cloud_in,"cloud_in");
     viewer->addCoordinateSystem(1,"ref");
@@ -97,6 +97,7 @@ void PCUtils::quickView(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in
     }
     
     viewer->close(); //n fecha pq ?
+    
     
 
 }
@@ -111,4 +112,13 @@ std::cout << "y = " << cloud_in->points[i].y << "|" ;
 std::cout << "z = " << cloud_in->points[i].z << std::endl;
 
 }
+
+}
+
+
+void PCUtils::fillCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_in,pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_out){
+
+
+
+    
 }
