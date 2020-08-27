@@ -19,6 +19,8 @@ link_libraries(${PCL_LIBRARIES} -pthread)
 #add_executable (PclTest ${SOURCES})
 #target_include_directories(PclTest PUBLIC "include/")
 
+add_executable(pcl_view_example src/pcl_view_example.cpp)
+
 add_library(Utils src/PCUtils.cpp)
 
 add_executable(normals src/normals.cpp)
@@ -27,6 +29,10 @@ target_link_libraries(volume Utils)
 add_executable(subsample src/subsample.cpp)
 add_executable(plane src/plane.cpp)
 add_executable(visualize src/visualize.cpp)
+
+# converter
+add_executable(pcd2txt src/pcd2txt.cpp)
+
 
 
 

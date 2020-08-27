@@ -1,5 +1,6 @@
 #include "PCUtils.h"
 
+#include "pcl/filters/extract_indices.h"
 /* 
 
 
@@ -25,100 +26,255 @@ end
 
 */
 
-void PCUtils::makeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_in,pcl::PointCloud<pcl::PointXYZ>::Ptr& floor, float density)
-{ 
-   
+static void Interpolate(const Eigen::MatrixXf &input, Eigen::MatrixXf &interpolated)
+{
+    interpolated = input;
+    int cols = input.cols();
+    int rows = input.rows();
+
+    // std::cout << input.block<3,3>(cols-4,rows-4) << std::endl;
+
+    for (int i = 0; i < input.size(); ++i)
+    {
+
+        if (input(i) == 0)
+        { // INTERPOLATE AQ
+        }
+    }
+
+    std::cout << "FIM INTERPOLATE\n";
+}
+
+void PCUtils::makeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointCloud<pcl::PointXYZ>::Ptr &floor, float density)
+{
+
     int N = cloud_in->size();
-    int step = (1/density); // TODO normalizar
-    
-    PCL_INFO("N = %d, step = %d\n",N,step);
-    
+    int step = (1 / density); // TODO normalizar
+
+    PCL_INFO("N = %d, step = %d\n", N, step);
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr floora = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
 
-    
-    floor->resize(N/step);
+    floor->resize(N / step);
 
-    
-    Eigen::Vector4f min,max;
-    pcl::getMinMax3D(*cloud_in,min,max);
+    Eigen::Vector4f min, max;
+    pcl::getMinMax3D(*cloud_in, min, max);
 
     float z_min = min[2]; // comentário so pra te lembrar qu tu ficou 1h preso aqui por causa do indice errado...
-    
-    PCL_INFO("zmin = %f\n \n",z_min);
+
+    PCL_INFO("zmin = %f\n \n", z_min);
 
     // std::cout << min << std::endl;
     // std::cout << max << std::endl;
-    
 
-    Eigen::Vector3f origin(0,0,0);
-    Eigen::Vector3f normal(0,0,1);
+    Eigen::Vector3f origin(0, 0, 0);
+    Eigen::Vector3f normal(0, 0, 1);
 
-    Eigen::Vector3f v,p;
+    Eigen::Vector3f v, p;
     float d;
     int i = 0;
-    for (int index = 0;index < N; index+= step){
+    for (int index = 0; index < N; index += step)
+    {
         p = cloud_in->points[index].getVector3fMap();
         // std::cout << p << std::endl;
         v = p - origin;
         d = v.dot(normal);
 
+        floor->points[i].getVector3fMap() = p - d * normal;
+        floor->points[i].z = z_min;
 
-     floor->points[i].getVector3fMap() = p - d*normal;
-     floor->points[i].z = z_min;    
-
-     if(i < floor->size()-1)
-        i++;
-     
+        if (i < floor->size() - 1)
+            i++;
     }
 
-    PCUtils::printPoints(floor,"floored");
+    // PCUtils::printPoints(floor, "floored");
 
     // cloud_out = floor;
-    
-
-    
-
-    
-
-
 }
 
-// Blocking
-void PCUtils::quickView(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in){
+void PCUtils::printPoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, const std::string &name)
+{
 
-    pcl::visualization::PCLVisualizer::Ptr viewer = pcl::make_shared<pcl::visualization::PCLVisualizer>("quick viewer");
-
-    viewer->addPointCloud(cloud_in,"cloud_in");
-    viewer->addCoordinateSystem(1,"ref");
-
-    while (! viewer->wasStopped()){
-
-        viewer->spinOnce();
+    std::cout << "Cloud : " << name << "| points : " << cloud_in->size() << std::endl
+              << std::endl;
+    for (int i = 0; i < cloud_in->size(); ++i)
+    {
+        std::cout << "x = " << cloud_in->points[i].x << "|";
+        std::cout << "y = " << cloud_in->points[i].y << "|";
+        std::cout << "z = " << cloud_in->points[i].z << std::endl;
     }
-    
-    viewer->close(); //n fecha pq ?
-    
-    
-
 }
 
+// Fill towards centroid
+// Density -> extra points per current point. recommended = 2
+void PCUtils::fillCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_out, int density)
+{
+    bool block = true;
 
-void  PCUtils::printPoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_in, const std::string& name){
+    pcl::PointXYZ centroid;
+    pcl::computeCentroid(*cloud_in, centroid);
 
-std::cout << "Cloud : " << name  << "| points : " << cloud_in->size() << std::endl << std::endl;
-for(int i=0; i < cloud_in->size();++i){
-std::cout << "x = " << cloud_in->points[i].x << "|" ;
-std::cout << "y = " << cloud_in->points[i].y << "|" ;
-std::cout << "z = " << cloud_in->points[i].z << std::endl;
+    pcl::copyPointCloud(*cloud_in, *cloud_out);
 
+    std::cout << "out cloud size : " << cloud_out->size() << std::endl;
+
+    for (int i = 0; i < cloud_in->size(); ++i)
+    {
+        // std::cout << "####### ITERATION: " << i << " ##############" << std::endl;
+
+        Eigen::Vector3f current_point = cloud_in->points[i].getVector3fMap();
+        // std::cout << "current_point: " << cloud_in->points[i] << std::endl;
+
+        // std::cout << "cenroid: " << centroid << std::endl;
+        Eigen::Vector3f direction = centroid.getVector3fMap() - current_point; // vector
+        // std::cout << "direction: " << direction << std::endl;
+        //point insertion
+        Eigen::Vector3f increment = direction / density;
+        // std::cout << "increment: " << increment << std::endl;
+
+        Eigen::Vector3f new_point = current_point;
+
+        for (int j = 0; j < density - 1; ++j)
+        {
+
+            new_point += increment;
+
+            // std::cout << "new_point: " << new_point << std::endl;
+
+            cloud_out->push_back(pcl::PointXYZ(new_point[0], new_point[1], new_point[2])); //Preallocate !
+
+            // std::cout << "checking .. " << cloud_out->points[cloud_out->size()-1] << std::endl;
+        }
+
+        // if(block){
+        // char c = std::cin.get();
+        // if(c == 'c')
+        // block = false;
+        // }
+    }
 }
 
+// Ideia -> gerar uma malha 2D de resolução 'res'; pra cada celular da malha, pegar os ponhos de maior altura e calcular o volume do paralelepipedo
+float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud_in, float res)
+{
+
+    pcl::PointXYZ min, max;
+    pcl::getMinMax3D(*cloud_in, min, max);
+    std::cout << min << max << std::endl;
+    int size_x = int((max.x + res - min.x) / res);
+    int size_y = int((max.y + res - min.y) / res);
+    Eigen::MatrixXf Cells;
+
+    Cells.resize(size_x, size_y);
+
+    Cells = Eigen::MatrixXf::Zero(size_x, size_y);
+
+    // std::cout << Cells << std::endl;
+    std::cout << "size = "
+              << "(" << size_x << "," << size_y << ")" << std::endl;
+
+    pcl::IndicesPtr pointIdxVec = pcl::make_shared<pcl::Indices>();
+
+    pcl::ExtractIndices<pcl::PointXYZ> extractor;
+    extractor.setInputCloud(cloud_in);
+    extractor.setIndices(pointIdxVec);
+
+    pcl::octree::OctreePointCloudSearch<pcl::PointXYZ> octree(res);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZ>);
+
+    octree.setInputCloud(cloud_in);
+
+    std::cout << "cloud size : " << cloud_in->size() << std::endl;
+    octree.addPointsFromInputCloud();
+
+    pcl::PointXYZ box_max(min.x + res, min.y + res, max.z);
+    pcl::PointXYZ box_min = min;
+    box_max.z = max.z;
+
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("janela"));
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green(cloud_in, 0, 255, 0);
+
+    viewer->addPointCloud(cloud_in, green, "in");
+    viewer->addCoordinateSystem(1, "ref");
+
+    int i = 0;
+    int j = 0;
+
+    pcl::PointXYZ centroid;
+
+    pcl::PointXYZ _min, _max;
+    // Pode ser multithread
+    while (box_max.y < max.y + res)
+    {
+
+        j = 0;
+
+        while (box_max.x < max.x + res)
+        {
+
+            octree.boxSearch(box_min.getVector3fMap(), box_max.getVector3fMap(), *pointIdxVec);
+            extractor.filter(*cloud_out);
+
+            if (cloud_out->size())
+            {
+                pcl::getMinMax3D(*cloud_out, _min, _max);
+                pcl::computeCentroid(*cloud_out, centroid);
+
+                // std::cout << "cloud extracted size = " <<cloud_out->size() << std::endl;
+                // std::cout << "(" << i << "," << j << ")" << std::endl;
+                // std::cout << _min << _max << std::endl;
+                // std::cout << centroid << std::endl;
+
+                // Maximum Height
+                // Cells(j,i) = _max.z - min.z; // GROUND
+
+                // Centroid
+                Cells(j, i) = centroid.z - min.z;
+
+                // FLOOR
+            }
+            else
+            {
+                Cells(j, i) = 0; // Interpolar aqui. Marcar células p/ interpolar. (média dos adjacentes termos )
+            }
+
+            // Animation
+            // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(cloud_out,255,0,0);
+            // viewer->addPointCloud(cloud_out,red,"extracted");
+            // // viewer->updatePointCloud(cloud_out,red,"extracted");
+            // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "extracted");
+            // viewer->spinOnce();
+            // std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            // viewer->removePointCloud("extracted");
+
+            box_max.x += res;
+            box_min.x += res;
+
+            j++;
+        }
+
+        box_min.y += res;
+        box_max.y += res;
+
+        box_max.x = min.x + res;
+        box_min.x = min.x;
+
+        i++;
+    }
+
+    // Processar interpoçao aqui
+
+    Eigen::MatrixXf Interpolated;
+
+    std::cout << "sum = " << Cells.sum() << std::endl;
+
+    // Interpolate(Cells,Interpolated);
+
+    // std::cout << Cells << std::endl << std::endl;
+    // std::cout << Interpolated << std::endl;
+    // std::cout << Interpolated(0) << "," << Interpolated(1) << std::endl;
+
+    return Cells.sum() * res * res;
 }
 
-
-void PCUtils::fillCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_in,pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_out){
-
-
-
-    
-}
+// Instantiate
