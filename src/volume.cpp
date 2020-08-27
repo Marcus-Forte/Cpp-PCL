@@ -138,7 +138,7 @@ void concHULL(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud_in, pcl::Pol
 int main(int argc, char **argv)
 {
 
-	if (argc < 2)
+	if (argc < 3)
 	{
 		PrintUsage (argv[0]);
     	return 0;

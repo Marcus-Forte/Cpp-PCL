@@ -1,6 +1,8 @@
 #include "PCUtils.h"
 
 #include "pcl/filters/extract_indices.h"
+
+#include <omp.h>
 /* 
 
 
@@ -204,6 +206,11 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
 
     pcl::PointXYZ _min, _max;
     // Pode ser multithread
+    std::cout << omp_get_max_threads() << std::endl;
+
+
+    // #pragma omp parallel num_threads(2) shared(pointIdxVec,Cells)
+    {
     while (box_max.y < max.y + res)
     {
 
@@ -260,6 +267,7 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
         box_min.x = min.x;
 
         i++;
+    }
     }
 
     // Processar interpoçao aqui

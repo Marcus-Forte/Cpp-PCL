@@ -5,6 +5,7 @@ set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #set (CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/bin)
 set (EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
 find_package(PCL 1.7 REQUIRED)
+find_package(OpenMP)
 
 
 #message(STATUS "PATH = ${CMAKE_SOURCE_DIR}")
@@ -14,7 +15,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 include_directories(${PCL_INCLUDE_DIRS})
 include_directories(include)
 add_definitions(${PCL_DEFINITIONS})
-link_libraries(${PCL_LIBRARIES} -pthread)
+link_libraries(${PCL_LIBRARIES} -pthread OpenMP::OpenMP_CXX)
 
 #add_executable (PclTest ${SOURCES})
 #target_include_directories(PclTest PUBLIC "include/")
