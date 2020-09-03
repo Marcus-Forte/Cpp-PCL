@@ -37,6 +37,7 @@ public:
     static void fillCloud(const  pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_in, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_out,int density = 2);
 
 
+    // This method should inherit from pcl::filters..
     static void ROIFilter(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in,const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_out, const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& ROI);
 
 
