@@ -26,10 +26,14 @@ add_library(Utils src/PCUtils.cpp)
 
 add_executable(normals src/normals.cpp)
 add_executable(volume src/volume.cpp)
-target_link_libraries(volume Utils)
 add_executable(subsample src/subsample.cpp)
 add_executable(plane src/plane.cpp)
 add_executable(visualize src/visualize.cpp)
+add_executable(roifilter src/roifilter.cpp)
+
+
+target_link_libraries(volume Utils)
+target_link_libraries(roifilter Utils)
 
 # converter
 add_executable(pcd2txt src/pcd2txt.cpp)

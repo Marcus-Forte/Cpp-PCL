@@ -285,4 +285,14 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
     return Cells.sum() * res * res;
 }
 
+
+
+
+void PCUtils::ROIFilter(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in,const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_out, const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& ROI){
+
+
+
+
+}
+
 // Instantiate

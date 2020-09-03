@@ -19,6 +19,8 @@
 // Classe utilitária
 
 
+
+
 class PCUtils {
 public:
 
@@ -33,6 +35,9 @@ public:
 
     // TODO heuristics
     static void fillCloud(const  pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_in, pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_out,int density = 2);
+
+
+    static void ROIFilter(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in,const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_out, const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& ROI);
 
 
     // 2.5D volume
