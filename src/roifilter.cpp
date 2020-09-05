@@ -34,10 +34,22 @@ int main(int argc,char** argv){
 
 	if (argc < 3)
 	{
-		std::cerr << "Usage : vizualise cloud.pcd ..." << std::endl;
+		std::cerr << "Usage : roifilter cloud.pcd cropbox.pcd ..." << std::endl;
 		exit(-1);
 	}
 
+
+	
+	std::string filename = argv[1]; //Cloud name
+	size_t final = filename.find_last_of(".");
+	size_t init = filename.find_last_of("/");
+
+	
+	std::string newfilename;
+	newfilename  = filename.substr(init+1,final-init-1); // Filtered ROI filename
+
+
+	std::cout << newfilename << std::endl;
 
 	PCUtils::readFile(argv[1],*cloud_in);
 	PCUtils::readFile(argv[2],*crop_zone);
@@ -61,6 +73,7 @@ int main(int argc,char** argv){
 	cropper.setDim(2);
 	cropper.setCropOutside(true);
 	cropper.filter(*cropped_cloud);
+	
 
 
 
@@ -94,11 +107,16 @@ viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POIN
 viewer->addCoordinateSystem(3,"ref");
 
 
+pcl::io::savePCDFileBinary(newfilename + "_filtered.pcd",*cropped_cloud);
+std::cout << "ROI filtered cloud saved successfully." << std::endl;
+
 
 
 while (!viewer->wasStopped()){
     viewer->spin();
 }
+
+
 
 
 
