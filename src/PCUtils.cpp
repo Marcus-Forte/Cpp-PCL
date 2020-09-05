@@ -28,6 +28,8 @@ end
 
 */
 
+
+
 static void Interpolate(const Eigen::MatrixXf &input, Eigen::MatrixXf &interpolated)
 {
     interpolated = input;
@@ -46,6 +48,8 @@ static void Interpolate(const Eigen::MatrixXf &input, Eigen::MatrixXf &interpola
 
     std::cout << "FIM INTERPOLATE\n";
 }
+
+
 
 void PCUtils::makeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointCloud<pcl::PointXYZ>::Ptr &floor, float density)
 {
@@ -94,16 +98,16 @@ void PCUtils::makeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl
     // cloud_out = floor;
 }
 
-void PCUtils::printPoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, const std::string &name)
+void PCUtils::printPoints(const pcl::PointCloud<pcl::PointXYZ> &cloud_in, const std::string &name)
 {
 
-    std::cout << "Cloud : " << name << "| points : " << cloud_in->size() << std::endl
+    std::cout << "Cloud : " << name << " | points : " << cloud_in.size() << std::endl
               << std::endl;
-    for (int i = 0; i < cloud_in->size(); ++i)
+    for (int i = 0; i < cloud_in.size(); ++i)
     {
-        std::cout << "x = " << cloud_in->points[i].x << "|";
-        std::cout << "y = " << cloud_in->points[i].y << "|";
-        std::cout << "z = " << cloud_in->points[i].z << std::endl;
+        std::cout << "x = " << cloud_in.points[i].x << "|";
+        std::cout << "y = " << cloud_in.points[i].y << "|";
+        std::cout << "z = " << cloud_in.points[i].z << std::endl;
     }
 }
 
@@ -182,7 +186,7 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
     extractor.setIndices(pointIdxVec);
 
     pcl::octree::OctreePointCloudSearch<pcl::PointXYZ> octree(res);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr box_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
     octree.setInputCloud(cloud_in);
 
@@ -193,11 +197,11 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
     pcl::PointXYZ box_min = min;
     box_max.z = max.z;
 
-    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("janela"));
+    // pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("janela"));
     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green(cloud_in, 0, 255, 0);
 
-    viewer->addPointCloud(cloud_in, green, "in");
-    viewer->addCoordinateSystem(1, "ref");
+    // viewer->addPointCloud(cloud_in, green, "in");
+    // viewer->addCoordinateSystem(1, "ref");
 
     int i = 0;
     int j = 0;
@@ -207,6 +211,8 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
     pcl::PointXYZ _min, _max;
     // Pode ser multithread
     std::cout << omp_get_max_threads() << std::endl;
+
+    double ground = min.z;
 
 
     // #pragma omp parallel num_threads(2) shared(pointIdxVec,Cells)
@@ -220,12 +226,12 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
         {
 
             octree.boxSearch(box_min.getVector3fMap(), box_max.getVector3fMap(), *pointIdxVec);
-            extractor.filter(*cloud_out);
+            extractor.filter(*box_cloud);
 
-            if (cloud_out->size())
+            if (box_cloud->size())
             {
-                pcl::getMinMax3D(*cloud_out, _min, _max);
-                pcl::computeCentroid(*cloud_out, centroid);
+                pcl::getMinMax3D(*box_cloud, _min, _max);
+                pcl::computeCentroid(*box_cloud, centroid);
 
                 // std::cout << "cloud extracted size = " <<cloud_out->size() << std::endl;
                 // std::cout << "(" << i << "," << j << ")" << std::endl;
@@ -233,10 +239,10 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
                 // std::cout << centroid << std::endl;
 
                 // Maximum Height
-                // Cells(j,i) = _max.z - min.z; // GROUND
+                Cells(j,i) = _max.z - ground; // GROUND
 
                 // Centroid
-                Cells(j, i) = centroid.z - min.z;
+                // Cells(j, i) = centroid.z - ground;
 
                 // FLOOR
             }
@@ -285,14 +291,5 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
     return Cells.sum() * res * res;
 }
 
-
-
-
-void PCUtils::ROIFilter(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud_in,const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_out, const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& ROI){
-
-
-
-
-}
 
 // Instantiate

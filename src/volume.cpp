@@ -29,7 +29,6 @@
 #include <pcl/surface/gp3.h>
 #include <pcl/surface/poisson.h>
 
-
 // Transformações
 #include <pcl/common/transforms.h>
 
@@ -52,15 +51,13 @@ https://lorensen.github.io/VTKExamples/site/Cxx/Modelling/Delaunay3D/
 
 */
 
-void PrintUsage (const char* progName)
+void PrintUsage(const char *progName)
 {
-  std::cout << "\n\nUsage: "<<progName<<" cloudfile resolution\n\n";
-
+	std::cout << "\n\nUsage: " << progName << " cloudfile resolution\n\n";
 }
 
 std::atomic<bool> done{false};
 // TODO Design lixo, melhorar dps
-
 
 float getVolumefromMesh(const pcl::PolygonMesh::Ptr &pclMesh)
 {
@@ -140,32 +137,41 @@ int main(int argc, char **argv)
 
 	if (argc < 3)
 	{
-		PrintUsage (argv[0]);
-    	return 0;
+		PrintUsage(argv[0]);
+		return 0;
 	}
 
-	std::string cloudfile = argv[1];
+	std::cout.precision(10);
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-	if (pcl::io::loadPCDFile(cloudfile, *cloud) == -1)
-	{
-		PCL_ERROR("Cloud not open .pcd file.\n");
-		return 0;
-	}
+	pcl::PointCloud<pcl::PointXYZ>::Ptr processing_cloud(new pcl::PointCloud<pcl::PointXYZ>); // Cloud to be processed
 
 
-	
+	PCUtils::readFile(argv[1],*cloud);
+	//Convex Hull Volume
+
+	processing_cloud = cloud;
+	pcl::PolygonMesh::Ptr convex_mesh(new pcl::PolygonMesh);
+	pcl::ConvexHull<pcl::PointXYZ> convex;
+	convex.setComputeAreaVolume(true);
+	convex.setInputCloud(processing_cloud);
+	convex.reconstruct(*convex_mesh);
+	std::cout << "Convex Hull Volume " << convex.getTotalVolume() << std::endl;
+	std::cout << "Concave - Number of meshes : " << convex_mesh->polygons.size() << std::endl;
+	std::cout << "My volume = " << volumeOfMesh(*convex_mesh) << std::endl;
+	// pcl::io::savePLYFile("convex.ply", *convex_mesh);
+	// std::cout << "Mesh saved" << std::endl;
+
 	float v_res = atof(argv[2]);
 
-	if(v_res < 0.001){
+	if (v_res < 0.001)
+	{
 		PCL_ERROR("Please insert a valid (>0.001) volume resolution!");
-		PrintUsage (argv[0]);
+		PrintUsage(argv[0]);
 		return 0;
 	}
-	
 
-	float vol = PCUtils::computeVolume(cloud,v_res);
+	float vol = PCUtils::computeVolume(cloud, v_res);
 	std::cout << "volume = " << vol << std::endl;
 	// PCUtils::startThreadedViewer();
 	// while(1);
@@ -173,19 +179,17 @@ int main(int argc, char **argv)
 	return 0;
 
 	pcl::PointXYZ centroid;
-    pcl::computeCentroid(*cloud, centroid);
+	pcl::computeCentroid(*cloud, centroid);
 
 	Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
 
-
-	transform(0,3) = -centroid.x;
-	transform(1,3) = -centroid.y;
-	transform(2,3) = -centroid.z;
+	transform(0, 3) = -centroid.x;
+	transform(1, 3) = -centroid.y;
+	transform(2, 3) = -centroid.z;
 
 	std::cout << centroid << std::endl;
 
-	pcl::transformPointCloud(*cloud,*cloud,transform);
-
+	pcl::transformPointCloud(*cloud, *cloud, transform);
 
 	/* --------------   VOXEL GRID ------------------ */
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
@@ -207,12 +211,11 @@ int main(int argc, char **argv)
 
 	/* --------------   NORMAL ESTIMATION ------------------ */
 	pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-	pcl::NormalEstimationOMP<pcl::PointXYZ,pcl::Normal> ne_omp(6);
+	pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> ne_omp(6);
 	// ne_omp.setNumberOfThreads(8);
 	ne_omp.setInputCloud(merged);
 	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree = pcl::make_shared<pcl::search::KdTree<pcl::PointXYZ>>();
 	ne_omp.setSearchMethod(tree);
-	
 
 	pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
 
@@ -220,7 +223,7 @@ int main(int argc, char **argv)
 
 	PCL_INFO("Estimating normals...\n");
 	ne_omp.compute(*cloud_normals);
-	PCL_INFO("Normals -> %d\n",cloud_normals->size());
+	PCL_INFO("Normals -> %d\n", cloud_normals->size());
 	PCL_INFO("DONE !\n");
 
 	/* MESH */
@@ -234,15 +237,14 @@ int main(int argc, char **argv)
 	tree2->setInputCloud(cloud_with_normals);
 
 	pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
-	
+
 	gp3.setSearchRadius(10);
 	gp3.setMu(10);
 	gp3.setMaximumNearestNeighbors(50);
-	gp3.setMaximumSurfaceAngle(M_PI / 4); // 45 degrees 
-	gp3.setMinimumAngle(M_PI / 18);		  // 10 degrees 
+	gp3.setMaximumSurfaceAngle(M_PI / 4); // 45 degrees
+	gp3.setMinimumAngle(M_PI / 18);		  // 10 degrees
 	gp3.setMaximumAngle(2 * M_PI / 3);	  // 120 degrees
 	gp3.setNormalConsistency(false);
-	
 
 	gp3.setInputCloud(cloud_with_normals);
 	gp3.setSearchMethod(tree2);
@@ -252,30 +254,30 @@ int main(int argc, char **argv)
 
 	/* --------------   POISSON ------------------ */
 	// pcl::Poisson<pcl::PointNormal> poisson;
-	
+
 	// poisson.setDepth(0.01);
 	// poisson.setInputCloud(cloud_with_normals);
 	// poisson.reconstruct(triangles);
 
 	/* --------------   VISUALIZATION  ------------------ */
-	int vp0,vp1;
+	int vp0, vp1;
 	pcl::visualization::PCLVisualizer::Ptr viewer_ = pcl::make_shared<pcl::visualization::PCLVisualizer>("quick viewer");
 	//viewports
-	
-	viewer_->createViewPort(0,0,0.5,1,vp0);
-	viewer_->createViewPort(0.5,0,1,1,vp1);
+
+	viewer_->createViewPort(0, 0, 0.5, 1, vp0);
+	viewer_->createViewPort(0.5, 0, 1, 1, vp1);
 	// Normals
 	pcl::visualization::PointCloudColorHandlerCustom<pcl::Normal> normal_color(cloud_normals, 255, 0, 0); // N SEI USAR
-	viewer_->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(merged, cloud_normals, 10, 0.1,"cloud_normals",vp0);
+	viewer_->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(merged, cloud_normals, 10, 0.1, "cloud_normals", vp0);
 	// Original + Floor
 	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(merged, 0, 255, 0);
-	viewer_->addPointCloud(merged, single_color, "merged cloud",vp0);
+	viewer_->addPointCloud(merged, single_color, "merged cloud", vp0);
 
 	//Point Size
 	viewer_->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "merged cloud");
 	viewer_->addCoordinateSystem(1, "ref");
-	viewer_->addPolygonMesh(triangles,"polygon",vp1);
-	
+	viewer_->addPolygonMesh(triangles, "polygon", vp1);
+
 	float v = volumeOfMesh(triangles);
 	std::cout << "volume = " << v << std::endl;
 	while (!viewer_->wasStopped())
@@ -301,20 +303,7 @@ int main(int argc, char **argv)
 
 	// return 0;
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr processing_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-	processing_cloud = cloud;
-
-	pcl::PolygonMesh::Ptr convex_mesh(new pcl::PolygonMesh);
-	pcl::ConvexHull<pcl::PointXYZ> convex;
-	convex.setComputeAreaVolume(true);
-	convex.setInputCloud(processing_cloud);
-	convex.reconstruct(*convex_mesh);
-	std::cout << "Convex Hull Volume " << convex.getTotalVolume() << std::endl;
-	std::cout << "Concave - Number of meshes : " << convex_mesh->polygons.size() << std::endl;
-	std::cout << "My volume = " << volumeOfMesh(*convex_mesh) << std::endl;
-	pcl::io::savePLYFile("convex.ply", *convex_mesh);
-	std::cout << "Mesh saved" << std::endl;
+	// VISUALIZER
 
 	pcl::visualization::PCLVisualizer::Ptr viewer = pcl::make_shared<pcl::visualization::PCLVisualizer>("3D Viewer");
 	viewer->setCameraPosition(-6.61, -4.33, 2.7, 1.0, 1, 1);

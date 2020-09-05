@@ -9,10 +9,11 @@
 #include <pcl/visualization/point_picking_event.h>
 #include <thread>
 #include <mutex>
+#include <pcl/common/transforms.h>
 
+#include "PCUtils.h"
 
 bool recopy = false;
-
 
 std::mutex g_mutex;
 
@@ -29,7 +30,6 @@ void slow_copy(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &src, pcl::Poin
 
 	tgt->clear();
 	tgt->resize(size);
-	
 
 	std::cout << "animating" << std::endl;
 	for (int i = 0; i < size; ++i)
@@ -51,18 +51,19 @@ void keyCallback(const pcl::visualization::KeyboardEvent &event)
 	{
 
 		// std::cout << "l" << std::endl;
-		
-		if (g_mutex.try_lock() == false ) {
+
+		if (g_mutex.try_lock() == false)
+		{
 			//std::cout << "locked" << std::endl;
-		} else {
+		}
+		else
+		{
 			// std::cout << "UNlocked" << std::endl;
 			g_mutex.unlock();
 			recopy = true;
 		}
-		
 	}
 }
-
 
 void make_grid(pcl::visualization::PCLVisualizer &viewer, float res = 1)
 {
@@ -140,16 +141,28 @@ int main(int argc, char **argv)
 
 	//CloudType::Ptr cloud (new CloudType);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr color_cloud2(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_animated(new pcl::PointCloud<pcl::PointXYZRGB>);
 
 	if (argc < 2)
 	{
-		std::cerr << "Usage : vizualise cloud.pcd ..." << std::endl;
+		std::cerr << "Usage : vizualise cloud.pcd/.txt [-a]" << std::endl;
 		exit(-1);
 	}
 
-	if (pcl::io::loadPCDFile(argv[1], *color_cloud) != 0) //TODO verificar ausencia do field rgb com try catch
-		exit(-1);
+	bool animated = false;
+
+	for (int i = 1; i < argc; ++i)
+	{
+		std::string opts = argv[i];
+		if (opts == "-a")
+		{
+			animated = true;
+			std::cout << "modo animado" << std::endl;
+		}
+	}
+
+
+	PCUtils::readFile(argv[1],*color_cloud);
 
 
 	for (int i = 0; i < color_cloud->size(); ++i)
@@ -163,45 +176,25 @@ int main(int argc, char **argv)
 		}
 	}
 
-	std::string arg(argv[1]);
-	std::string cloudname;
-	int slash = arg.find_last_of('/'); //path
-	int dot = arg.find_last_of('.');   //extension
-	cloudname = arg.substr(slash + 1);
 
-	pcl::visualization::PCLVisualizer viewer(cloudname);
+	pcl::visualization::PCLVisualizer viewer("My Viewer");
 
 	int v1, v2;
 	viewer.createViewPort(0, 0, 1, 1, v1);
-	// viewer.addPointCloud(color_cloud,"cloud",v1);
-
-	viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "cloud", v1);
+	viewer.setCameraPosition(-6.61, -2.13, 10.33, 1.0, 1, 1);
 	viewer.setBackgroundColor(0, 0, 0, v1);
-	// Eigen::Affine3f t;
-	//		t = Eigen::Affine3f::Identity();
-	//		t.translate(Eigen::Vector3f(1,1,1));
-	//		t.rotate(Eigen::AngleAxisf(0.75,Eigen::Vector3f::UnitZ()));
-
-	//		viewer.addCoordinateSystem(1,t,"ref",v1);
 	viewer.addCoordinateSystem(1, "ref", v1);
 	viewer.registerPointPickingCallback(pp_callback);
-	viewer.setCameraPosition(-6.61, -2.13, 10.33, 1.0, 1, 1);
-
 	make_grid(viewer, 1);
 
-	//		viewer.createViewPort(0.5,0,1,1,v2);
-	//		viewer.setBackgroundColor(1,1,1,v2);
-	//		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(color_cloud);
-	//		viewer.addPointCloud(color_cloud,rgb,"cloud_color",v2);
-	//		viewer.addCoordinateSystem(1,"origin2",v2);
-	//		viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,10,"cloud",v2);
+	// Animated
 
-	// Iterative
+	if (!animated)
+		viewer.addPointCloud(color_cloud, "cloud");
+	else
+		viewer.addPointCloud(cloud_animated, "cloud_animated");
 
-	
 
-//viewer.addPointCloud(color_cloud, "cloud");
-	viewer.addPointCloud(color_cloud2, "cloud2");
 	viewer.registerKeyboardCallback(keyCallback);
 	viewer.setSize(1920, 1080);
 
@@ -210,19 +203,21 @@ int main(int argc, char **argv)
 	while (!viewer.wasStopped())
 	{
 
-		if(recopy == true){
-		std::thread thr(slow_copy, color_cloud, color_cloud2, 10);
-		thr.detach();
-		recopy = false;
+		if (animated)
+		{
+
+			if (recopy == true)
+			{
+				std::thread thr(slow_copy, color_cloud, cloud_animated, 10);
+				thr.detach();
+				recopy = false;
+			}
+
+			viewer.updatePointCloud(cloud_animated,"cloud_animated");
 		}
 
-
-
-		viewer.updatePointCloud(color_cloud2, "cloud2");
 		viewer.spinOnce(1, false);
 	}
-
-	
 
 	return 0;
 }

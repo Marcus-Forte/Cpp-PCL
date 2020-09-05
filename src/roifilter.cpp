@@ -1,112 +1,98 @@
+#include <pcl/PolygonMesh.h>
+#include <pcl/common/common.h>
 #include <pcl/point_cloud.h>
-#include "PCUtils.h"
 #include <pcl/filters/crop_hull.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/crop_box.h>
 #include <pcl/surface/convex_hull.h>
 
+#include "PCUtils.h"
+
+static void extrude(const pcl::PointCloud<pcl::PointXYZ>& cloud_in,const pcl::PointCloud<pcl::PointXYZ>& crop_zone,pcl::PointCloud<pcl::PointXYZ>& crop_zone3D){
+	pcl::PointXYZ min,max;
+	pcl::getMinMax3D(cloud_in,min,max);
+	crop_zone3D = crop_zone; // Copy ?
+	
+	for(int i=0;i<crop_zone.size();++i){
+		pcl::PointXYZ newpt(crop_zone.points[i].x,crop_zone.points[i].y,max.z+10);
+		crop_zone3D.points[i].z = min.z-10;
+		crop_zone3D.push_back(newpt);
+	}
+
+}
+
 int main(int argc,char** argv){
 
 	//CloudType::Ptr cloud (new CloudType);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr crop_zone(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr crop_zone2(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr crop_zone3D(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cropped_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
 	
 
-	if (argc < 2)
+	if (argc < 3)
 	{
 		std::cerr << "Usage : vizualise cloud.pcd ..." << std::endl;
 		exit(-1);
 	}
 
-	if (pcl::io::loadPCDFile(argv[1], *cloud_in) != 0) //TODO verificar ausencia do field rgb com try catch
-		exit(-1);
+
+	PCUtils::readFile(argv[1],*cloud_in);
+	PCUtils::readFile(argv[2],*crop_zone);
 
 
-    float vertex = 0.25;
-    pcl::PointXYZ pt;
-    pt.x = vertex;
-    pt.y = vertex;
-    pt.z = 1.5;
-    crop_zone->push_back(pt);
-    pt.x = vertex;
-    pt.y = -vertex;    
-    crop_zone->push_back(pt);
-    pt.x = -vertex;
-    pt.y = vertex;
-    crop_zone->push_back(pt);
-    pt.x = -vertex;
-    pt.y = -vertex;
-    crop_zone->push_back(pt);
+	extrude(*cloud_in,*crop_zone,*crop_zone3D);
 
-    pt.x = vertex;
-    pt.y = vertex;
-    pt.z = -1;
-    crop_zone->push_back(pt);
-    pt.x = vertex;
-    pt.y = -vertex;    
-    crop_zone->push_back(pt);
-    pt.x = -vertex;
-    pt.y = vertex;
-    crop_zone->push_back(pt);
-    pt.x = -vertex;
-    pt.y = -vertex;
-    crop_zone->push_back(pt);
-    
+	pcl::ConvexHull<pcl::PointXYZ> convexhull;
+	std::vector<pcl::Vertices> polygons;
+	pcl::PolygonMesh mesh;
+	convexhull.setInputCloud(crop_zone3D);
+	convexhull.setDimension(3);
 
-pcl::ConvexHull<pcl::PointXYZ> convex_hull;
-std::vector<pcl::Vertices> indices;
-convex_hull.setInputCloud(crop_zone);
-// convex_hull.setDimension(3);
-convex_hull.setComputeAreaVolume(true);
-convex_hull.reconstruct(indices);
-std::cout << "volume = " << convex_hull.getTotalVolume() << std::endl;
+	convexhull.reconstruct(polygons);
+	convexhull.reconstruct(mesh);
 
-pcl::CropHull<pcl::PointXYZ> cropper;
-cropper.setInputCloud(cloud_in);
-cropper.setHullCloud(crop_zone);
-//cropper.setHullIndices(crop_zone->);
-cropper.setDim(3);
-cropper.setCropOutside(true);
-cropper.filter(*cloud_out);
-
-std::cout << "cloud out size: " << cloud_out->size() << std::endl;
-
-
-// Cropbox funciona legal!
-// pcl::CropBox<pcl::PointXYZ> crop_box;
-
-// Eigen::Vector4f min,max;
-// min[0] = -0.25;
-// min[1] = -0.25;
-// min[2] = -100;
-// min[3] = 1;
-
-// max[0] = 0.25;
-// max[1] = 0.25;
-// max[2] = 100;
-// max[3] = 1;
-
-
-// crop_box.setMin(min);
-// crop_box.setMax(max);
-// crop_box.setInputCloud(cloud_in);
-// crop_box.filter(*cloud_out);
+	pcl::CropHull<pcl::PointXYZ> cropper;
+	cropper.setInputCloud(cloud_in);
+	cropper.setHullCloud(crop_zone3D);
+	cropper.setHullIndices(polygons);
+	cropper.setDim(2);
+	cropper.setCropOutside(true);
+	cropper.filter(*cropped_cloud);
 
 
 
+
+// Cropbox funciona muito bem
+//   pcl::CropBox<pcl::PointXYZ> crop_box;
+//  
+//   Eigen::Vector4f min,max;
+//   pcl::getMinMax3D(*crop_zone,min,max);
+//  
+//   crop_box.setMin(min);
+//   crop_box.setMax(max);
+//   crop_box.setInputCloud(cloud_in);
+//   crop_box.filter(*cloud_out);
+
+
+
+std::cout << "cloud out size: " << cropped_cloud->size() << std::endl;
 pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer);
-pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(crop_zone, 0, 255, 0); //green
-pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color2(cloud_out, 255, 0, 0); //red
+pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green_(crop_zone, 0, 255, 0); //green
+// pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red_(cloud_out, 255, 0, 0); //red
+pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> blue_(cropped_cloud, 0, 0, 255); //blue
 viewer->addPointCloud(cloud_in);
-viewer->addPointCloud(crop_zone,single_color,"zone");
-viewer->addPointCloud(cloud_out,single_color2,"output");
+viewer->addPointCloud(crop_zone,green_,"zone");
+//viewer->addPointCloud(cloud_out,red_,"output");
+viewer->addPointCloud(cropped_cloud,blue_,"cropped");
+viewer->addPolygonMesh(mesh,"mesh");
 viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "zone");
-viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "output");
+// viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "output");
+viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cropped");
+viewer->addCoordinateSystem(3,"ref");
 
-// viewer->addCoordinateSystem(1,"Ref");
 
 
 
