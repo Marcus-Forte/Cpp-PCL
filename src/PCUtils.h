@@ -66,7 +66,8 @@ class PCUtils
 				static void makeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_out, float density);
 
 				// TODO make default stuff
-				static void printPoints(const pcl::PointCloud<pcl::PointXYZ> &cloud_in, const std::string &name);
+				template<typename pointT>
+				static void printPoints(const pcl::PointCloud<pointT> &cloud_in, const std::string &name);
 
 				//TODO fill clouds with points between floor and cloud top
 

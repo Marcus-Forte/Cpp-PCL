@@ -15,6 +15,43 @@
 
 bool recopy = false;
 
+static bool compare_z(pcl::PointXYZRGB& a, pcl::PointXYZRGB& b){
+	return (a.z < b.z);
+}
+
+static bool compare_x(pcl::PointXYZRGB& a, pcl::PointXYZRGB& b){
+	return (a.x < b.x);
+}
+
+static bool compare_y(pcl::PointXYZRGB& a, pcl::PointXYZRGB& b){
+	return (a.y < b.y);
+}
+
+// 3x (pi/2) de senoidais deslocadas
+// T -> Periodo = 4 * max
+// TODO --> USAR LUT, COMO ??
+void setColorMap(int n,int max,pcl::PointXYZRGB& pt){
+float min_color = 0;
+float max_color = 240;
+//Normaliza
+float t = n;
+float T = 4*max;
+
+// Blue sine (lowest) começa com 90 graus
+float b = ((std::sin(2*M_PI*t/T + M_PI_2)))*max_color; // ineficiente
+//Green sine (mid) // 45 graus
+float g = ((std::sin(3*M_PI*t/T + M_PI_4)))*max_color; 
+// Red sine (highest) // 0 graus
+float r = ((std::sin(2*M_PI*t/T)))*max_color;
+pt.r = r;
+pt.g = g;
+pt.b = b;
+// std::cout << "RGB: " << r << "," << g << "," << b << std::endl;
+
+}
+
+
+
 std::mutex g_mutex;
 
 // thread here
@@ -121,6 +158,8 @@ void make_grid(pcl::visualization::PCLVisualizer &viewer, float res = 1)
 	viewer.addLine(p3, p4, "line" + std::to_string(i++));
 }
 
+
+
 void pp_callback(const pcl::visualization::PointPickingEvent &event)
 {
 
@@ -145,7 +184,7 @@ int main(int argc, char **argv)
 
 	if (argc < 2)
 	{
-		std::cerr << "Usage : vizualise cloud.pcd/.txt [-a]" << std::endl;
+		std::cerr << "Usage : vizualise cloud.pcd/.txt ... [-a]" << std::endl;
 		exit(-1);
 	}
 
@@ -188,11 +227,35 @@ int main(int argc, char **argv)
 	make_grid(viewer, 1);
 
 	// Animated
+	// pcl::PointCloud<pcl::PointXYZ>::Ptr color_cloud2(new pcl::PointCloud<pcl::PointXYZ>);
+	// pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZRGB> single_color(color_cloud);
+	// pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> single_color(color_cloud,0,255,0);
 
-	if (!animated)
-		viewer.addPointCloud(color_cloud, "cloud");
-	else
-		viewer.addPointCloud(cloud_animated, "cloud_animated");
+	// Sort point cloud by z
+	// PCUtils::printPoints<pcl::PointXYZRGB>(*color_cloud,"before");
+	std::sort(color_cloud->begin(),color_cloud->end(),compare_z); // Functiona
+	// PCUtils::printPoints<pcl::PointXYZRGB>(*color_cloud,"after"); 
+
+	// Mapear cores dentro do length da nuvem. i -> (r,g,b). 
+	int max = color_cloud->size();
+	for(int i=0;i<max;++i){
+		setColorMap(i,max,color_cloud->points[i]);
+	}
+
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> height_color(color_cloud);
+
+	
+
+	
+	// return 0;
+	if (animated)
+	viewer.addPointCloud(cloud_animated, "cloud_animated");
+	else{
+	viewer.addPointCloud(color_cloud,height_color, "cloud");
+	
+	
+	}
+		
 
 
 	viewer.registerKeyboardCallback(keyCallback);
@@ -208,7 +271,7 @@ int main(int argc, char **argv)
 
 			if (recopy == true)
 			{
-				std::thread thr(slow_copy, color_cloud, cloud_animated, 10);
+				std::thread thr(slow_copy, color_cloud, cloud_animated, 3);
 				thr.detach();
 				recopy = false;
 			}

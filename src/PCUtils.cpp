@@ -98,7 +98,8 @@ void PCUtils::makeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl
     // cloud_out = floor;
 }
 
-void PCUtils::printPoints(const pcl::PointCloud<pcl::PointXYZ> &cloud_in, const std::string &name)
+template<typename pointT>
+void PCUtils::printPoints(const pcl::PointCloud<pointT> &cloud_in, const std::string &name)
 {
 
     std::cout << "Cloud : " << name << " | points : " << cloud_in.size() << std::endl
@@ -293,3 +294,7 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
 
 
 // Instantiate
+
+// Explicit Instantiation
+template void PCUtils::printPoints<pcl::PointXYZ>(const pcl::PointCloud<pcl::PointXYZ> &cloud_in, const std::string &name);
+template void PCUtils::printPoints<pcl::PointXYZRGB>(const pcl::PointCloud<pcl::PointXYZRGB> &cloud_in, const std::string &name);
