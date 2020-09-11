@@ -35,7 +35,7 @@ target_link_libraries(visualize Utils)
 
 
 # converter
-add_executable(pcd2txt src/pcd2txt.cpp)
+add_executable(extconverter src/extconverter.cpp)
 
 
 
