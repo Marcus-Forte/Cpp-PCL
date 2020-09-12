@@ -27,10 +27,10 @@ add_executable(subsample src/subsample.cpp)
 add_executable(plane src/plane.cpp)
 add_executable(volume src/volume.cpp)
 add_executable(visualize src/visualize.cpp)
-add_executable(roifilter src/roifilter.cpp)
+add_executable(cropbox src/cropbox.cpp)
 
 target_link_libraries(volume Utils)
-target_link_libraries(roifilter Utils)
+target_link_libraries(cropbox Utils)
 target_link_libraries(visualize Utils)
 
 

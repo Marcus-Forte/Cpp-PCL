@@ -65,6 +65,7 @@ void slow_copy(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &src, pcl::Poin
 	std::lock_guard<std::mutex> guard(g_mutex);
 	int size = src->size();
 
+
 	tgt->clear();
 	tgt->resize(size);
 
