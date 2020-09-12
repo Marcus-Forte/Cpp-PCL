@@ -87,11 +87,13 @@ int main(int argc, char **argv)
 	// TODO 
 	// parse argv[1] for timestamps
 
+	std::cout << "Loading RAW point cloud..." << std::endl;
 	if (pcl::io::loadPCDFile(argv[1], *cloud_raw) == -1)
 	{
-		std::cerr << "Error loading raw cloud.Exiting" << std::endl;
+		std::cerr << "Error loading raw cloud.Exiting." << std::endl;
 		exit(-1);
 	}
+	std::cout << "RAW point cloud loaded!" << std::endl;
 
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> crop_clouds;
 
@@ -130,7 +132,7 @@ int main(int argc, char **argv)
 			int r = readCropfile(filename, cloud, Origin);
 			if (r == 1 && hasJson == false)
 			{ // Some .crop has no origin
-				std::cerr << "Warning : '.crop' file " << filename << " has NO Origin and no '.json' was found. Ignoring crop." << std::endl;
+				std::cerr << "Warning : '" << filename << "' has NO Origin and no '.json' was found. Ignoring crop." << std::endl;
 				// exit(-1);
 				continue;
 			}
@@ -144,9 +146,11 @@ int main(int argc, char **argv)
 			std::string newfilename;
 			newfilename = filename.substr(init + 1, final - init - 1); // Filtered ROI filename
 
+			std::cout << "Cropping '" << newfilename << "' ..." << std::endl;
 			crop(cloud_raw, cloud, cropped_cloud); // Crop happens here
 			crop_clouds.push_back(cropped_cloud);
 			pcl::io::savePCDFileBinary(newfilename + ".pcd", *cropped_cloud); // TODO adotar padrão aqui
+			std::cout << "Saved : " << newfilename << ".pcd" << std::endl;
 		}
 	}
 
@@ -165,6 +169,8 @@ int main(int argc, char **argv)
 
 	if (!hasVisualization)
 		return 0;
+
+	std::cout << "Opening crop viewer..." << std::endl;
 
 	pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer);
 	viewer->addPointCloud(cloud_raw, "raw");
