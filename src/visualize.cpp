@@ -13,6 +13,8 @@
 
 #include "PCUtils.h"
 
+// TODO add multiple input clouds
+
 bool recopy = false;
 
 static bool compare_z(pcl::PointXYZRGB& a, pcl::PointXYZRGB& b){
