@@ -12,8 +12,21 @@
 #include "crop2pcd.h"
 
 #include <boost/property_tree/json_parser.hpp> // .json parse
+#include <boost/property_tree/exceptions.hpp>
 
 #include <unistd.h>
+
+void printUsage(){
+std::cout << "Usage:" << std::endl << " geocrop cloud.pcd crop1.crop crop2.crop ...  [origin.json] [-D dir] -[v]" << std::endl << std::endl;
+std::cout << "Crop point clouds clouds with geographical coordinates" << std::endl << std::endl;
+std::cout << "First parameter must be the '.pcd' cloud to be cropped." << std::endl;
+std::cout << "'.json' files are optional, but are required if no origin is given in the .crop files. They must have a node called 'origem' with at latitude and longitude specified" << std::endl;
+std::cout << "Options:" << std::endl;
+std::cout << "-D	specify cropped cloud save directory " << std::endl;
+std::cout << "-v	specify cropped cloud save directory " << std::endl;
+std::cout << "-v 	optional visualization interface" << std::endl;
+
+}
 
 //TODO
 // gerar arquivos de saída com nomes padronizados (parsear timestamp do arquivo origem e juntar nomes nas saídas)
@@ -71,7 +84,7 @@ int main(int argc, char **argv)
 {
 	if (argc < 3)
 	{
-		std::cerr << "Usage : ./cropbox cloud.pcd crop1.crop crop2.crop ...  [origin.json] [-D dir] -[v (visualization) ]" << std::endl;
+		printUsage();
 		exit(-1);
 	}
 
@@ -79,7 +92,7 @@ int main(int argc, char **argv)
 	bool hasVisualization = false;
 	std::string custom_dir = "./";
 
-	while ((opt = getopt(argc, argv, "vD:")) != -1)
+	while ((opt = getopt(argc, argv, "vD:h")) != -1)
 	{
 
 			switch(opt){
@@ -87,31 +100,37 @@ int main(int argc, char **argv)
 							hasVisualization = true;
 							break;
 					case 'D':
-							custom_dir = optarg;
+							custom_dir = std::string(optarg) + "/";
 //							std::cout << "custom dir : " << custom_dir << std::endl;
 							break;
 					case '?':
 							std::cerr << "Specify the requried directory!" << std::endl;
 							exit(-1);
+							break;
+
+					case 'h':
+					printUsage();
+					exit(0);
+					break;
+
+
 			}
 
 
 	}
 
-// 	printf("optind = %d\n",optind);
-// 	for(int i=0;i<argc;++i){
-// 			std::cout << "Arg " << i << " " << argv[i] << std::endl;
-// 	}
 
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_raw(new pcl::PointCloud<pcl::PointXYZ>);
 
-	bool hasJson = false;
+	bool hasJsonOrigin = false;
+	bool hasPCD = false;
+	std::string raw_prefix;
 
-
-	// TODO 
-	// parse argv[1] for timestamps
-
+	for(int i = optind;i<argc;++i){
+		std::string filename = argv[i];
+		if (filename.find(".pcd") != std::string::npos) {// Check if .crop file
+		hasPCD = true;
 	std::cout << "Loading RAW point cloud..." << std::endl;
 	if (pcl::io::loadPCDFile(argv[optind], *cloud_raw) == -1)
 	{
@@ -122,7 +141,16 @@ int main(int argc, char **argv)
 	std::string rawfilename = argv[optind];
 	size_t final_raw = rawfilename.find_last_of("."); //Substring extraction
 	size_t init_raw = rawfilename.find_last_of("/");
-	std::string raw_prefix = rawfilename.substr(init_raw + 1, final_raw - init_raw - 1);
+	raw_prefix = rawfilename.substr(init_raw + 1, final_raw - init_raw - 1);
+	break; // Looks only for a single .pcd
+		}
+	}
+
+	if(!hasPCD){
+		std::cerr << "No .pcd file given! Exiting.";
+		exit(-1);
+	}
+
 
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> crop_clouds;
 
@@ -137,14 +165,28 @@ int main(int argc, char **argv)
 		if (filename.find(".json") != std::string::npos)
 		{
 			// parse .json, check origin
-			std::cout << "Loaded .json metadata: " << filename << std::endl;
-			boost::property_tree::read_json(filename, pt);
-			std::string value;
-			value = pt.get<std::string>("origem");
-			// std::cout << "Json Origin: " << value << std::endl;
-			sscanf(value.c_str(), "%lf,%lf,%*lf", &Origin.latitude, &Origin.longitude);
+			hasJsonOrigin = true;
+			std::cout << "Loading .json metadata: " << filename << std::endl;
+			try{
+			boost::property_tree::read_json(filename, pt); // May throw
+			} catch(boost::property_tree::ptree_error e) {
+				std::cerr << "error loading .json: " << e.what() << std::endl;
+				hasJsonOrigin = false;
+			}
 
-			hasJson = true;
+			try{
+			std::string value;
+			value = pt.get<std::string>("origem"); // may throw. 
+			sscanf(value.c_str(), "%lf,%lf,%*lf", &Origin.latitude, &Origin.longitude);
+			}
+			 catch (boost::property_tree::ptree_error e) {
+				std::cerr << "Warning: " << e.what() << std::endl;
+				hasJsonOrigin = false;	
+			}
+			// std::cout << "Json Origin: " << value << std::endl;
+			
+
+			
 		}
 	}
 
@@ -159,9 +201,9 @@ int main(int argc, char **argv)
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 			pcl::PointCloud<pcl::PointXYZ>::Ptr cropped_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 			int r = readCropfile(filename, cloud, Origin);
-			if (r == 1 && hasJson == false)
+			if (r == 1 && hasJsonOrigin == false)
 			{ // Some .crop has no origin
-				std::cerr << "Warning : '" << filename << "' has NO Origin and no '.json' was found. Ignoring crop." << std::endl;
+				std::cerr << "Warning : '" << filename << "' has NO Origin and no '.json' origin was found. Ignoring crop." << std::endl;
 				// exit(-1);
 				continue;
 			}
@@ -179,10 +221,17 @@ int main(int argc, char **argv)
 			std::cout << "Cropping '" << newfilename << "' ..." << std::endl;
 			crop(cloud_raw, cloud, cropped_cloud); // Crop happens here
 			crop_clouds.push_back(cropped_cloud);
+			if(cropped_cloud->size() != 0){
 			pcl::io::savePCDFileBinary(custom_dir + raw_prefix + "_" + newfilename + ".pcd", *cropped_cloud); // TODO adotar padrão aqui
 			std::cout << "Saved: " << newfilename << ".pcd" << std::endl;
+			} else {
+				std::cout << "Warning: Cropped zone '" << newfilename << "' has no points!" << std::endl;
+			}
+
 		}
 	}
+
+
 
 
 	if (!hasVisualization)
