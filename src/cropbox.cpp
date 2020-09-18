@@ -69,31 +69,60 @@ static void crop(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud_in, const
 
 int main(int argc, char **argv)
 {
+	if (argc < 3)
+	{
+		std::cerr << "Usage : ./cropbox cloud.pcd crop1.crop crop2.crop ...  [origin.json] [-D dir] -[v (visualization) ]" << std::endl;
+		exit(-1);
+	}
 
-	//CloudType::Ptr cloud (new CloudType);
+	char opt;
+	bool hasVisualization = false;
+	std::string custom_dir = "./";
+
+	while ((opt = getopt(argc, argv, "vD:")) != -1)
+	{
+
+			switch(opt){
+					case 'v':
+							hasVisualization = true;
+							break;
+					case 'D':
+							custom_dir = optarg;
+//							std::cout << "custom dir : " << custom_dir << std::endl;
+							break;
+					case '?':
+							std::cerr << "Specify the requried directory!" << std::endl;
+							exit(-1);
+			}
+
+
+	}
+
+// 	printf("optind = %d\n",optind);
+// 	for(int i=0;i<argc;++i){
+// 			std::cout << "Arg " << i << " " << argv[i] << std::endl;
+// 	}
+
+
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_raw(new pcl::PointCloud<pcl::PointXYZ>);
-	// pcl::PointCloud<pcl::PointXYZ>::Ptr crop_zone(new pcl::PointCloud<pcl::PointXYZ>);
-	// pcl::PointCloud<pcl::PointXYZ>::Ptr crop_zone3D(new pcl::PointCloud<pcl::PointXYZ>);
-	// pcl::PointCloud<pcl::PointXYZ>::Ptr cropped_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
 	bool hasJson = false;
 
-	if (argc < 3)
-	{
-		std::cerr << "Usage : ./cropbox cloud.pcd crop1.crop crop2.crop ...  [origin.json]" << std::endl;
-		exit(-1);
-	}
 
 	// TODO 
 	// parse argv[1] for timestamps
 
 	std::cout << "Loading RAW point cloud..." << std::endl;
-	if (pcl::io::loadPCDFile(argv[1], *cloud_raw) == -1)
+	if (pcl::io::loadPCDFile(argv[optind], *cloud_raw) == -1)
 	{
 		std::cerr << "Error loading raw cloud.Exiting." << std::endl;
 		exit(-1);
 	}
 	std::cout << "RAW point cloud loaded!" << std::endl;
+	std::string rawfilename = argv[optind];
+	size_t final_raw = rawfilename.find_last_of("."); //Substring extraction
+	size_t init_raw = rawfilename.find_last_of("/");
+	std::string raw_prefix = rawfilename.substr(init_raw + 1, final_raw - init_raw - 1);
 
 	std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> crop_clouds;
 
@@ -102,13 +131,13 @@ int main(int argc, char **argv)
 
 	boost::property_tree::ptree pt;
 	// look for json origin
-	for (int i = 2; i < argc; ++i)
+	for (int i = optind; i < argc; ++i)
 	{
 		std::string filename = argv[i];
 		if (filename.find(".json") != std::string::npos)
 		{
 			// parse .json, check origin
-			std::cout << "Loaded json. metadata : " << filename << std::endl;
+			std::cout << "Loaded .json metadata: " << filename << std::endl;
 			boost::property_tree::read_json(filename, pt);
 			std::string value;
 			value = pt.get<std::string>("origem");
@@ -121,7 +150,7 @@ int main(int argc, char **argv)
 
 	std::vector<std::string> outputfilenames;
 
-	for (int i = 2; i < argc; ++i)
+	for (int i = optind; i < argc; ++i)
 	{
 		std::string filename = argv[i];
 		if (filename.find(".crop") != std::string::npos) // Check if .crop file
@@ -141,31 +170,20 @@ int main(int argc, char **argv)
 				exit(-1);
 			}
 
+			// Generate the name of output file
 			size_t final = filename.find_last_of(".");
 			size_t init = filename.find_last_of("/");
 			std::string newfilename;
-			newfilename = filename.substr(init + 1, final - init - 1); // Filtered ROI filename
+			newfilename = filename.substr(init + 1, final - init - 1);
 
 			std::cout << "Cropping '" << newfilename << "' ..." << std::endl;
 			crop(cloud_raw, cloud, cropped_cloud); // Crop happens here
 			crop_clouds.push_back(cropped_cloud);
-			pcl::io::savePCDFileBinary(newfilename + ".pcd", *cropped_cloud); // TODO adotar padrão aqui
-			std::cout << "Saved : " << newfilename << ".pcd" << std::endl;
+			pcl::io::savePCDFileBinary(custom_dir + raw_prefix + "_" + newfilename + ".pcd", *cropped_cloud); // TODO adotar padrão aqui
+			std::cout << "Saved: " << newfilename << ".pcd" << std::endl;
 		}
 	}
 
-	char opt;
-
-	bool hasVisualization = false;
-
-	while ((opt = getopt(argc, argv, "v")) != -1)
-	{
-
-		if (opt == 'v')
-		{
-			hasVisualization = true;
-		}
-	}
 
 	if (!hasVisualization)
 		return 0;
