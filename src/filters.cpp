@@ -69,7 +69,7 @@ int main(int argc,char** argv){
 		voxel.filter(*cloud_filtered2);
 		std::cout << "OK! Number of points: " << cloud_filtered2->size() << std::endl;
 		// 
-		//  
+		// MeanK = 200, StdThresh = 5 for stockpile 
 		std::cout << "Computing SOR..." << std::endl;
 		pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
 		sor.setInputCloud(cloud);
