@@ -280,9 +280,13 @@ int main(int argc, char **argv)
 			}
 
 			viewer.updatePointCloud(cloud_animated,"cloud_animated");
+		viewer.spinOnce(1, false);
+		} else {
+
+			viewer.spin();
+
 		}
 
-		viewer.spinOnce(1, false);
 	}
 
 	return 0;

@@ -23,7 +23,7 @@ add_library(Utils STATIC src/PCUtils.cpp)
 
 add_executable(pcl_view_example src/pcl_view_example.cpp)
 add_executable(normals src/normals.cpp)
-add_executable(subsample src/subsample.cpp)
+add_executable(filters src/filters.cpp)
 add_executable(plane src/plane.cpp)
 add_executable(volume src/volume.cpp)
 add_executable(visualize src/visualize.cpp)
