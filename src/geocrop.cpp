@@ -23,7 +23,6 @@ std::cout << "First parameter must be the '.pcd' cloud to be cropped." << std::e
 std::cout << "'.json' files are optional, but are required if no origin is given in the .crop files. They must have a node called 'origem' with at latitude and longitude specified" << std::endl;
 std::cout << "Options:" << std::endl;
 std::cout << "-D	specify cropped cloud save directory " << std::endl;
-std::cout << "-v	specify cropped cloud save directory " << std::endl;
 std::cout << "-v 	optional visualization interface" << std::endl;
 
 }
