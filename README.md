@@ -6,9 +6,9 @@ The repository includes the  following programs/libraries :
 
 - visualuze: a simple CLI command to open a .pcd or .txt file and quickly visualize. It also colorizes according to my own color map along Z axis. I will add multiple clouds argument support later.
 
-- extconverter: converts a .pcd point cloud to .txt point cloud and vice versa.
+- extconverter: converts a .pcd point cloud to .txt point cloud and vice versa. (Will add .asc files too, it is treated just as the .txt)
 
-- filters: simply calls SOR,VOXELGRID and GRID MINIMUM filters on the input point clouds, with parameters given by the command line.
+- filters: simply calls SOR,VOXELGRID and GRID MINIMUM filters on the input point clouds, with parameters given by the command line, and save de filtered clouds.
 
 - subsample: Applies Voxel Grid subsampling with resolution parametrized by the command line argument.
 
