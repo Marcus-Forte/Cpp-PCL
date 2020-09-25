@@ -2,6 +2,7 @@
 
 #include <pcl/point_cloud.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
 #include <pcl/point_types.h>
 #include <pcl/common/common.h>
 #include <pcl/console/print.h>
@@ -23,6 +24,25 @@
 class PCUtils
 {
 public:
+static void setColorMap(int n,int max,pcl::PointXYZRGB& pt){
+		float min_color = 0;
+		float max_color = 240;
+		//Normaliza
+		float t = n;
+		float T = 4*max;
+
+		// Blue sine (lowest) começa com 90 graus
+		float b = ((std::sin(2*M_PI*t/T + M_PI_2)))*max_color; // ineficiente
+		//Green sine (mid) // 45 graus
+		float g = ((std::sin(3*M_PI*t/T + M_PI_4)))*max_color; 
+		// Red sine (highest) // 0 graus
+		float r = ((std::sin(2*M_PI*t/T)))*max_color;
+		pt.r = r;
+		pt.g = g;
+		pt.b = b;
+		// std::cout << "RGB: " << r << "," << g << "," << b << std::endl;
+
+}
 	// This method loads either .pcd or .txt point cloud files.
 	template <typename pointT>
 	static inline int readFile(const std::string &cloudfile, pcl::PointCloud<pointT> &cloud)
@@ -48,12 +68,19 @@ public:
 				PCL_ERROR("Cloud not open .txt file.\n");
 				exit(-1);
 			}
+		} else if (extension.compare("ply") == 0) {
+
+			if(pcl::io::loadPLYFile(cloudfile,cloud) == -1) {
+					PCL_ERROR("Could not open .ply file. \n");
+					exit(-1);
+			}
+
 		}
 
 		else
 		{
 
-			PCL_ERROR("format not supported!");
+			PCL_ERROR("format not supported!\n");
 			exit(-1);
 		}
 

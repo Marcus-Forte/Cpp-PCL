@@ -27,6 +27,30 @@ cloud_floored = [cloud;Projected_points_offset];
 end
 
 */
+// Paint Cloud
+// 3x (pi/2) de senoidais deslocadas
+// T -> Periodo = 4 * max
+// TODO --> USAR LUT, COMO ??
+// TODO --> Entrar com nuvem, e nao ponto
+void setColorMap(int n,int max,pcl::PointXYZRGB& pt){
+		float min_color = 0;
+		float max_color = 240;
+		//Normaliza
+		float t = n;
+		float T = 4*max;
+
+		// Blue sine (lowest) começa com 90 graus
+		float b = ((std::sin(2*M_PI*t/T + M_PI_2)))*max_color; // ineficiente
+		//Green sine (mid) // 45 graus
+		float g = ((std::sin(3*M_PI*t/T + M_PI_4)))*max_color; 
+		// Red sine (highest) // 0 graus
+		float r = ((std::sin(2*M_PI*t/T)))*max_color;
+		pt.r = r;
+		pt.g = g;
+		pt.b = b;
+		// std::cout << "RGB: " << r << "," << g << "," << b << std::endl;
+
+}
 
 
 

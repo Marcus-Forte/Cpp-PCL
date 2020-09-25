@@ -68,7 +68,14 @@
 			"typeinfo": "cpp",
 			"variant": "cpp",
 			"bit": "cpp",
-			"valarray": "cpp"
+			"valarray": "cpp",
+			"csignal": "cpp",
+			"hash_map": "cpp",
+			"compare": "cpp",
+			"concepts": "cpp",
+			"unordered_set": "cpp",
+			"ranges": "cpp",
+			"stop_token": "cpp"
 		}
 	}
 }

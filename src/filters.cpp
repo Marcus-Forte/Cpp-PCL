@@ -9,9 +9,10 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/visualization/cloud_viewer.h>
 
+#include "PCUtils.h"
 
 
-typedef pcl::PointCloud<pcl::PointXYZ> CloudType;
+typedef pcl::PointCloud<pcl::PointXYZRGB> CloudType;
 
 
 int main(int argc,char** argv){
@@ -31,6 +32,7 @@ int main(int argc,char** argv){
 		if ( pcl::io::loadPCDFile(argv[1],*cloud) != 0 )
 				exit(-1);
 
+		std::cout << "Loaded: " << cloud->size() << " points." << std::endl;
 		// cloudname 
 		std::string arg(argv[1]);
 		std::string grid_cloudname,voxel_cloudname,sor_cloudname;
@@ -56,14 +58,14 @@ int main(int argc,char** argv){
 		std::cout << "res = " << res << std::endl;
 
 		std::cout << "Computing Grid Minimum..." << std::endl;
-		pcl::GridMinimum<pcl::PointXYZ> grid(res); //resolution
+		pcl::GridMinimum<pcl::PointXYZRGB> grid(res); //resolution
 		grid.setInputCloud(cloud);
 		grid.filter(*cloud_filtered);
 		std::cout << "OK! Number of points: " << cloud_filtered->size() << std::endl;
 		// 
 		// 
 		std::cout << "Computing Voxel Grid..." << std::endl;
-		pcl::VoxelGrid<pcl::PointXYZ> voxel;
+		pcl::VoxelGrid<pcl::PointXYZRGB> voxel;
 		voxel.setInputCloud(cloud);
 		voxel.setLeafSize(res,res,res);
 		voxel.filter(*cloud_filtered2);
@@ -71,7 +73,7 @@ int main(int argc,char** argv){
 		// 
 		// MeanK = 200, StdThresh = 5 for stockpile 
 		std::cout << "Computing SOR..." << std::endl;
-		pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+		pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
 		sor.setInputCloud(cloud);
 		sor.setMeanK(atof(argv[3]));
 		sor.setStddevMulThresh(atof(argv[4]));
@@ -79,6 +81,24 @@ int main(int argc,char** argv){
 		std::cout << "OK! Number of points: " << cloud_filtered3->size() << std::endl;
 
 
+		//Paint pointClouds
+		int max = cloud->size();
+		for(int i=0;i<max;++i){
+
+				PCUtils::setColorMap(i,max,cloud->points[i]);
+		}
+	max = cloud_filtered2->size();
+		for(int i=0;i<max;++i){
+				PCUtils::setColorMap(i,max,cloud_filtered2->points[i]);
+		}
+		max = cloud_filtered3->size();
+		for(int i=0;i<max;++i){
+				PCUtils::setColorMap(i,max,cloud_filtered3->points[i]);
+		}
+// 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> height_color0(cloud);
+// 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> height_color1(cloud_filtered2);
+// 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> height_color2(cloud_filtered3);
+		
 
 		std::cout << "Wrting output clouds..." << std::endl;
 		pcl::io::savePCDFileBinary( grid_cloudname, *cloud_filtered);
@@ -107,9 +127,9 @@ int main(int argc,char** argv){
 	viewer->createViewPort(0,0,1,0.5,v0);
 	viewer->createViewPort(0,0.5,0.5,1,v1);
 	viewer->createViewPort(0.5,0.5,1,1,v2);
-	viewer->addPointCloud<pcl::PointXYZ>(cloud,"cloud",v0);
-	viewer->addPointCloud<pcl::PointXYZ>(cloud_filtered2,"voxel",v1);
-	viewer->addPointCloud<pcl::PointXYZ>(cloud_filtered3,"sor",v2);
+	viewer->addPointCloud<pcl::PointXYZRGB>(cloud,"cloud",v0);
+	viewer->addPointCloud<pcl::PointXYZRGB>(cloud_filtered2,"voxel",v1);
+	viewer->addPointCloud<pcl::PointXYZRGB>(cloud_filtered3,"sor",v2);
 	
 	viewer->addCoordinateSystem(1,"origin");
 
