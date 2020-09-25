@@ -70,15 +70,15 @@ int main(int argc,char**argv)
 
 	//Start
 	pcl::PointXYZ start_point;
-	start_point.x = 0.5; 
-	start_point.y = 0.5;  
-	start_point.z = 1;  
+	start_point.x = -4.07;
+	start_point.y = 44.701;  
+	start_point.z = -61.75;  
 
 	//End
 	pcl::PointXYZ end_point;
-	end_point.x = 1; //12 | 1
-	end_point.y = 0.5; //-21 | 0.5
-	end_point.z = 0.5; //-142 | 0.5
+	end_point.x = -40; //12 | 1
+	end_point.y = -140; //-21 | 0.5
+	end_point.z = -59; //-142 | 0.5
 
 	tree->nearestKSearch(start_point,1,index_vector,dummy_arg);
 	start_point_index = index_vector[0];
