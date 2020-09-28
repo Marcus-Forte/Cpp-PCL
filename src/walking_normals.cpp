@@ -1,4 +1,6 @@
 #include <iostream>
+#include <pcl/common/io.h>
+#include <pcl/impl/point_types.hpp>
 #include <pcl/point_types.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/io/pcd_io.h>
@@ -194,6 +196,10 @@ int main(int argc,char**argv)
 	
 	// Plotting both
 	viewer.addPointCloudNormals<pcl::PointXYZ,pcl::Normal>(output_cloud,output_normals,1,0.1,"cloud_normals");
+
+	pcl::PointCloud<pcl::PointNormal> cloud_path;
+	pcl::concatenateFields(*output_cloud,*output_normals,cloud_path);
+	pcl::io::savePLYFile("cloud_path.ply",cloud_path);
 
 	while(!viewer.wasStopped()){
 
