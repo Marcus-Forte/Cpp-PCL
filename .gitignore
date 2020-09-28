@@ -2,5 +2,6 @@ build/
 bin/
 /*.pcd
 .vscode
+*.swp
 .clangd
 

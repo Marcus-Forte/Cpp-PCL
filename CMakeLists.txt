@@ -27,6 +27,7 @@ add_executable(plane src/plane.cpp)
 add_executable(volume src/volume.cpp)
 add_executable(visualize src/visualize.cpp)
 add_executable(geocrop src/geocrop.cpp)
+add_executable(subsample src/subsample.cpp)
 
 target_link_libraries(volume Utils)
 target_link_libraries(geocrop Utils)

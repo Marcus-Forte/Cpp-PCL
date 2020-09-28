@@ -2,6 +2,16 @@
 #include <pcl/io/ply_io.h>
 #include <fstream>
 
+
+// getopt
+#include <unistd.h>
+
+
+
+void printUsage(){
+        std::cout << "Usage: extconverter [.pcd / .txt] [-D dir]" << std::endl;
+}
+
 template <typename pointT>
 static inline int readTxt(const std::string &filename, pcl::PointCloud<pointT> &cloud)
 {
@@ -35,13 +45,38 @@ int main(int argc, char **argv)
 
     if (argc < 2)
     {
-        std::cerr << "Please give an .pcd or .txt file" << std::endl;
+		printUsage();
         exit(-1);
     }
 
+	std::string custom_dir = "./";
+	char opt;
+	while ((opt = getopt(argc, argv, "D:h")) != -1){
+
+			switch(opt){
+					case 'D':
+							custom_dir = std::string(optarg) + "/";
+//							std::cout << "custom dir : " << custom_dir << std::endl;
+							break;
+					case '?':
+							std::cerr << "Specify the requried directory!" << std::endl;
+							exit(-1);
+							break;
+
+					case 'h':
+					printUsage();
+					exit(0);
+					break;
+			}
+
+
+
+	}
+
+			//optind start from non option arguments
     
 
-    std::string cloudfile = argv[1];
+    std::string cloudfile = argv[optind];
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
 
@@ -52,6 +87,7 @@ int main(int argc, char **argv)
 
 		if (extension.compare("pcd") == 0)
 		{
+			std::cout << "Loading Input Clouds..." << std::endl;
 			if (pcl::io::loadPCDFile(cloudfile, *cloud) == -1)
 			{
 				PCL_ERROR("Cloud not open .pcd file.\n");
@@ -63,6 +99,7 @@ int main(int argc, char **argv)
 		else if (extension.compare("txt") == 0)
 		{
 
+			std::cout << "Loading Input Clouds..." << std::endl;
 			if (readTxt(cloudfile, *cloud) == -1)
 			{
 				PCL_ERROR("Cloud not open .txt file.\n");
@@ -70,6 +107,11 @@ int main(int argc, char **argv)
 			}
             output_extension = ".pcd";
             
+		}
+		else {
+			
+				PCL_ERROR("file format not supported!\n");
+				exit(-1);
 		}
 
     
@@ -85,10 +127,12 @@ int main(int argc, char **argv)
     // std::cout << outfile << std::endl;
 
     
+	std::cout << "Converting..." << std::endl;
+	// std::cout << "Custom dir = '" << custom_dir << "'" << std::endl;
     if(isOutputTxt){
     std::ofstream file;
 
-    file.open(outfile);
+    file.open(custom_dir + outfile);
 
     for (int i = 0; i < cloud->size(); ++i)
     {
@@ -100,7 +144,7 @@ int main(int argc, char **argv)
 
     } else {
 
-        pcl::io::savePCDFileASCII(outfile,*cloud);
+        pcl::io::savePCDFileASCII(custom_dir + outfile,*cloud);
         std::cout << ".pcd saved!" << std::endl;
         return 0;
 
