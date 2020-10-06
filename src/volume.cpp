@@ -150,15 +150,16 @@ int main(int argc, char **argv)
 	PCUtils::readFile(argv[1],*cloud);
 	//Convex Hull Volume
 
-	processing_cloud = cloud;
-	pcl::PolygonMesh::Ptr convex_mesh(new pcl::PolygonMesh);
-	pcl::ConvexHull<pcl::PointXYZ> convex;
-	convex.setComputeAreaVolume(true);
-	convex.setInputCloud(processing_cloud);
-	convex.reconstruct(*convex_mesh);
-	std::cout << "Convex Hull Volume " << convex.getTotalVolume() << std::endl;
-	std::cout << "Concave - Number of meshes : " << convex_mesh->polygons.size() << std::endl;
-	std::cout << "My volume = " << volumeOfMesh(*convex_mesh) << std::endl;
+	// processing_cloud = cloud;
+	// pcl::PolygonMesh::Ptr convex_mesh(new pcl::PolygonMesh);
+	// pcl::ConvexHull<pcl::PointXYZ> convex;
+	// std::cout << "Computing convex hull " << convex.getTotalVolume() << std::endl;
+	// convex.setComputeAreaVolume(true);
+	// convex.setInputCloud(processing_cloud);
+	// convex.reconstruct(*convex_mesh);
+	// std::cout << "Convex Hull Volume " << convex.getTotalVolume() << std::endl;
+	// std::cout << "Concave - Number of meshes : " << convex_mesh->polygons.size() << std::endl;
+	// std::cout << "My volume = " << volumeOfMesh(*convex_mesh) << std::endl;
 	// pcl::io::savePLYFile("convex.ply", *convex_mesh);
 	// std::cout << "Mesh saved" << std::endl;
 

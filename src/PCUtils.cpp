@@ -223,7 +223,7 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
     box_max.z = max.z;
 
     // pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("janela"));
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green(cloud_in, 0, 255, 0);
+    // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green(cloud_in, 0, 255, 0);
 
     // viewer->addPointCloud(cloud_in, green, "in");
     // viewer->addCoordinateSystem(1, "ref");
@@ -276,9 +276,9 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
                 Cells(j, i) = 0; // Interpolar aqui. Marcar células p/ interpolar. (média dos adjacentes termos )
             }
 
-            // Animation
-            // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(cloud_out,255,0,0);
-            // viewer->addPointCloud(cloud_out,red,"extracted");
+            // Debug Animation
+            // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(box_cloud,255,0,0);
+            // viewer->addPointCloud(box_cloud,red,"extracted");
             // // viewer->updatePointCloud(cloud_out,red,"extracted");
             // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "extracted");
             // viewer->spinOnce();
