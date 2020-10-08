@@ -122,7 +122,7 @@ int main(int argc,char** argv){
 
 
 	std::cout << "Opening Visualizer" << std::endl;
-	pcl::visualization::PCLVisualizer::Ptr viewer = boost::make_shared<pcl::visualization::PCLVisualizer>("Viewer");
+	pcl::visualization::PCLVisualizer::Ptr viewer = pcl::make_shared<pcl::visualization::PCLVisualizer>("Viewer");
 	
 	viewer->createViewPort(0,0,1,0.5,v0);
 	viewer->createViewPort(0,0.5,0.5,1,v1);
