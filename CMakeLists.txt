@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 project(MyPCL)
 
+
+set (CMAKE_BUILD_TYPE Release)
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #set (CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/bin)
 set (EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
@@ -30,6 +32,7 @@ add_executable(visualize src/visualize.cpp)
 add_executable(geocrop src/geocrop.cpp)
 add_executable(subsample src/subsample.cpp)
 add_executable(segmentation src/segmentation.cpp)
+add_executable(registration src/registration.cpp)
 
 target_link_libraries(volume Utils)
 target_link_libraries(volume_studies Utils)
