@@ -1,11 +1,13 @@
 cmake_minimum_required(VERSION 2.8)
 project(MyPCL)
 
+# My Arch pcl-11 folder
+set (CMAKE_PREFIX_PATH /home/marcus/PCL/install/share)
+
 
 set (CMAKE_BUILD_TYPE Release)
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
-#set (CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/bin)
-set (EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
+set (EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin) #make binary folder
 find_package(PCL 1.7 REQUIRED)
 find_package(OpenMP)
 

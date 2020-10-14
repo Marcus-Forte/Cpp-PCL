@@ -60,7 +60,7 @@ static void setColorMap(int n,int max,pcl::PointXYZRGB& pt){
 				exit(-1);
 			}
 		}
-		else if (extension.compare("txt") == 0)
+		else if (extension.compare("txt") == 0 || extension.compare("asc") == 0)
 		{
 
 			if (readTxt(cloudfile, cloud) == -1)
