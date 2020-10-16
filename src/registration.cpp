@@ -10,6 +10,8 @@
 #include <pcl/common/centroid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 
+#include <pcl/console/parse.h>
+
 using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
 
 void printUsage()
@@ -20,8 +22,13 @@ void printUsage()
 int main(int argc, char **argv)
 {
 
-    PointCloudT::Ptr cloud_source = pcl::make_shared<PointCloudT>();
-    PointCloudT::Ptr cloud_target = pcl::make_shared<PointCloudT>();
+    PointCloudT::Ptr cloud_source = pcl::make_shared<PointCloudT>(); //Voxel
+    PointCloudT::Ptr cloud_source_ = pcl::make_shared<PointCloudT>(); //Raw
+
+
+    PointCloudT::Ptr cloud_target_ = pcl::make_shared<PointCloudT>(); //Raw
+    PointCloudT::Ptr cloud_target = pcl::make_shared<PointCloudT>(); // Voxel
+    
 
     PointCloudT::Ptr cloud_icp = pcl::make_shared<PointCloudT>();
     PointCloudT::Ptr cloud_gicp = pcl::make_shared<PointCloudT>();
@@ -32,13 +39,19 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(argv[1], *cloud_target) == -1) //* load the file
+    bool generateOutput = false;
+
+    std::string output_name;
+    if ( pcl::console::parse_argument(argc,argv,"-o",output_name) != -1)
+        generateOutput = true;
+
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(argv[1], *cloud_target_) == -1) //* load the file
     {
         PCL_ERROR("Couldn't read file model \n");
         return (-1);
     }
 
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(argv[2], *cloud_source) == -1) //* load the file
+    if (pcl::io::loadPCDFile<pcl::PointXYZ>(argv[2], *cloud_source_) == -1) //* load the file
     {
         PCL_ERROR("Couldn't read file shape \n");
         return (-1);
@@ -50,10 +63,10 @@ int main(int argc, char **argv)
     float res = atof(argv[3]);
     pcl::VoxelGrid<pcl::PointXYZ> voxel;
     voxel.setLeafSize(res, res, res);
-    voxel.setInputCloud(cloud_target);
+    voxel.setInputCloud(cloud_target_);
     voxel.filter(*cloud_target);
 
-    voxel.setInputCloud(cloud_source);
+    voxel.setInputCloud(cloud_source_);
     voxel.filter(*cloud_source);
 
     // MeanK = 200, StdThresh = 5 for stockpile
@@ -130,6 +143,15 @@ int main(int argc, char **argv)
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "cloud_target");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "cloud_icp");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "cloud_gicp");
+
+    if(generateOutput){
+        PointCloudT::Ptr cloud_final = pcl::make_shared<PointCloudT>();
+        std::cout << "Saving aligned point cloud in: '" << output_name << "'" << std::endl;
+        pcl::transformPointCloud(*cloud_source_,*cloud_final,g_icp.getFinalTransformation());
+        *cloud_final = *cloud_final + *cloud_target_;
+        pcl::io::savePCDFile(output_name + ".pcd",*cloud_final);
+
+    } 
 
     // viewer.
 
