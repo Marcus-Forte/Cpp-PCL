@@ -9,7 +9,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/common/centroid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
-
+#include <pcl/features/normal_3d.h>
 #include <pcl/console/parse.h>
 
 using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
@@ -22,27 +22,25 @@ void printUsage()
 int main(int argc, char **argv)
 {
 
-    PointCloudT::Ptr cloud_source = pcl::make_shared<PointCloudT>(); //Voxel
-    PointCloudT::Ptr cloud_source_ = pcl::make_shared<PointCloudT>(); //Raw
-
-
-    PointCloudT::Ptr cloud_target_ = pcl::make_shared<PointCloudT>(); //Raw
-    PointCloudT::Ptr cloud_target = pcl::make_shared<PointCloudT>(); // Voxel
-    
-
-    PointCloudT::Ptr cloud_icp = pcl::make_shared<PointCloudT>();
-    PointCloudT::Ptr cloud_gicp = pcl::make_shared<PointCloudT>();
-
     if (argc < 5)
     {
         printUsage();
         exit(-1);
     }
 
+    PointCloudT::Ptr cloud_source = pcl::make_shared<PointCloudT>();  //Voxel
+    PointCloudT::Ptr cloud_source_ = pcl::make_shared<PointCloudT>(); //Raw
+
+    PointCloudT::Ptr cloud_target_ = pcl::make_shared<PointCloudT>(); //Raw
+    PointCloudT::Ptr cloud_target = pcl::make_shared<PointCloudT>();  // Voxel
+
+    PointCloudT::Ptr cloud_icp = pcl::make_shared<PointCloudT>();
+    PointCloudT::Ptr cloud_gicp = pcl::make_shared<PointCloudT>();
+
     bool generateOutput = false;
 
     std::string output_name;
-    if ( pcl::console::parse_argument(argc,argv,"-o",output_name) != -1)
+    if (pcl::console::parse_argument(argc, argv, "-o", output_name) != -1)
         generateOutput = true;
 
     if (pcl::io::loadPCDFile<pcl::PointXYZ>(argv[1], *cloud_target_) == -1) //* load the file
@@ -81,9 +79,6 @@ int main(int argc, char **argv)
     // sor.setInputCloud(cloud_source);
     // sor.filter(*cloud_source);
 
-    
-    
-
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> g_icp;
 
@@ -93,10 +88,36 @@ int main(int argc, char **argv)
     icp.setInputTarget(cloud_target);
     icp.setMaximumIterations(maxit);
     icp.align(*cloud_icp);
+
     std::cout << "Score: " << icp.getFitnessScore() << std::endl;
     std::cout << "Has Converged : " << icp.hasConverged() << std::endl;
 
     std::cout << "Computing GICP..." << std::endl;
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne_source;
+    pcl::PointCloud<pcl::Normal>::Ptr source_normals = pcl::make_shared<pcl::PointCloud<pcl::Normal>>();
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_source_normals = pcl::make_shared<pcl::PointCloud<pcl::PointNormal>>();
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    tree->setInputCloud(cloud_source);
+    ne_source.setInputCloud(cloud_source);
+    ne_source.setSearchMethod(tree);
+    ne_source.setKSearch(5);
+    ne_source.setViewPoint(0, 0, -1);
+
+    ne_source.compute(*source_normals);
+
+    pcl::concatenateFields(*cloud_source, *source_normals, *cloud_source_normals);
+
+    pcl::visualization::PCLVisualizer viewer_("test");
+    viewer_.addPointCloudNormals<pcl::PointNormal>(cloud_source_normals, 10, 1, "cloud");
+    viewer_.addCoordinateSystem(1, "ref");
+    // viewer_.addPointCloud(cloud_source,"cloudInput");
+
+    while (!viewer_.wasStopped())
+    {
+        viewer_.spin();
+    }
+    return 0;
+
     g_icp.setInputSource(cloud_source);
     g_icp.setInputTarget(cloud_target);
     g_icp.setMaximumIterations(maxit);
@@ -113,45 +134,40 @@ int main(int argc, char **argv)
     std::cout << "ICP Euler = " << icp.getFinalTransformation().block<3, 3>(0, 0).eulerAngles(0, 1, 2) << std::endl;
     std::cout << "GICP Euler = " << g_icp.getFinalTransformation().block<3, 3>(0, 0).eulerAngles(0, 1, 2) << std::endl;
 
-    Eigen::Vector4f source_centroid,gicp_centroid, icp_centroid,target_centroid;
-    pcl::compute3DCentroid(*cloud_source, source_centroid);
-    pcl::compute3DCentroid(*cloud_gicp, gicp_centroid);
-    pcl::compute3DCentroid(*cloud_icp, icp_centroid);
-    pcl::compute3DCentroid(*cloud_target, target_centroid);
-    
+    // Eigen::Vector4f source_centroid,gicp_centroid, icp_centroid,target_centroid;
+    // pcl::compute3DCentroid(*cloud_source, source_centroid);
+    // pcl::compute3DCentroid(*cloud_gicp, gicp_centroid);
+    // pcl::compute3DCentroid(*cloud_icp, icp_centroid);
+    // pcl::compute3DCentroid(*cloud_target, target_centroid);
 
-    // This is the direction the
-    std::cout << "ICP Centroid Displacement = " << icp_centroid - source_centroid << ::endl;
-
-    std::cout << "GICP Centroid Displacement = " << gicp_centroid - source_centroid << ::endl;
-
-    std::cout << "RAW Centroid Displacement = " << target_centroid - source_centroid << ::endl;
+    // // This is the direction the
+    // std::cout << "ICP Centroid Displacement = " << icp_centroid - source_centroid << ::endl;
+    // std::cout << "GICP Centroid Displacement = " << gicp_centroid - source_centroid << ::endl;
+    // std::cout << "RAW Centroid Displacement = " << target_centroid - source_centroid << ::endl;
 
     pcl::visualization::PCLVisualizer viewer("Viewer");
-    int v0, v1, v2; //Viewports
-    viewer.createViewPort(0, 0, 0.33, 1, v0);
-    viewer.createViewPort(0.33, 0, 0.66, 1, v1);
-    viewer.createViewPort(0.66, 0, 1, 1, v2);
+    int v0, v1; //Viewports
+    viewer.createViewPort(0, 0, 0.5, 1, v0);
+    viewer.createViewPort(0.5, 0, 1, 1, v1);
     viewer.setCameraPosition(0, 0, -2, 0, -1, 0);
     viewer.addPointCloud(cloud_target, "cloud_target");
     viewer.addPointCloud(cloud_source, "cloud_source", v0);
-    viewer.addPointCloud(cloud_icp, "cloud_icp", v1);
-    viewer.addPointCloud(cloud_gicp, "cloud_gicp", v2);
+    viewer.addPointCloud(cloud_gicp, "cloud_gicp", v1);
     viewer.addCoordinateSystem(0.1, "ref");
 
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "cloud_source");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "cloud_target");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "cloud_icp");
+
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "cloud_gicp");
 
-    if(generateOutput){
+    if (generateOutput)
+    {
         PointCloudT::Ptr cloud_final = pcl::make_shared<PointCloudT>();
         std::cout << "Saving aligned point cloud in: '" << output_name << "'" << std::endl;
-        pcl::transformPointCloud(*cloud_source_,*cloud_final,g_icp.getFinalTransformation());
+        pcl::transformPointCloud(*cloud_source_, *cloud_final, g_icp.getFinalTransformation());
         *cloud_final = *cloud_final + *cloud_target_;
-        pcl::io::savePCDFile(output_name + ".pcd",*cloud_final);
-
-    } 
+        pcl::io::savePCDFile(output_name + ".pcd", *cloud_final);
+    }
 
     // viewer.
 

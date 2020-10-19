@@ -24,6 +24,9 @@
 class PCUtils
 {
 public:
+
+
+		
 static void setColorMap(int n,int max,pcl::PointXYZRGB& pt){
 		float min_color = 0;
 		float max_color = 240;
