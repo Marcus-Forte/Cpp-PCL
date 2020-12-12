@@ -1,0 +1,6 @@
+[submodule "SLAM/loam_velodyne"]
+	path = SLAM/loam_velodyne
+	url = https://github.com/daobilige-su/loam_velodyne.git
+[submodule "SLAM/original"]
+	path = SLAM/original
+	url = https://github.com/laboshinl/loam_velodyne
