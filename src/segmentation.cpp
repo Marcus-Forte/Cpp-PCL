@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 
     PCL_INFO("N points -> %d\n", cloud->size());
 
-    pcl::SampleConsensusModelLine<pcl::PointXYZ>::Ptr model_line = std::make_shared<pcl::SampleConsensusModelLine<pcl::PointXYZ>>(cloud);
+    pcl::SampleConsensusModelLine<pcl::PointXYZ>::Ptr model_line = pcl::make_shared<pcl::SampleConsensusModelLine<pcl::PointXYZ>>(cloud);
     pcl::RandomSampleConsensus<pcl::PointXYZ> ransac_(model_line);
     ransac_.setDistanceThreshold(dist_thres);
 
@@ -64,8 +64,8 @@ int main(int argc, char **argv)
     ransac.setInputCloud(cloud);
     
 
-    pcl::IndicesPtr inliers = std::make_shared<pcl::Indices>();
-    pcl::PointIndicesPtr inliers_ = std::make_shared<pcl::PointIndices>();
+    pcl::IndicesPtr inliers = pcl::make_shared<pcl::Indices>();
+    pcl::PointIndicesPtr inliers_ = pcl::make_shared<pcl::PointIndices>();
     
 
     pcl::ExtractIndices<pcl::PointXYZ> extractor;

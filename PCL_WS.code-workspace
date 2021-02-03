@@ -75,7 +75,9 @@
 			"concepts": "cpp",
 			"unordered_set": "cpp",
 			"ranges": "cpp",
-			"stop_token": "cpp"
+			"stop_token": "cpp",
+			"*.ipp": "cpp",
+			"nonlinearoptimization": "cpp"
 		}
 	}
 }
