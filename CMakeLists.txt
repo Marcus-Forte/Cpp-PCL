@@ -1,15 +1,18 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
 project(MyPCL)
 
-# My Arch pcl-11 folder
-set (CMAKE_PREFIX_PATH /home/marcus/PCL/install/share)
+# My Arch pcl-10 folder
+# set (CMAKE_PREFIX_PATH /home/marcus/PCL/pcl-pcl-1.10.1/build/install)
+# set (PCL_DIR "/home/marcus/PCL/pcl-pcl-1.10.1/build/install/share/pcl-1.10/")
 
 
-set (CMAKE_BUILD_TYPE Release)
+set (CMAKE_BUILD_TYPE Debug)
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin) #make binary folder
 find_package(PCL 1.7 REQUIRED)
 find_package(OpenMP)
+
+message(STATUS "PCL VERSION -> " ${PCL_VERSION})
 
 
 #message(STATUS "PATH = ${CMAKE_SOURCE_DIR}")
@@ -36,6 +39,9 @@ add_executable(geocrop src/geocrop.cpp)
 add_executable(subsample src/subsample.cpp)
 add_executable(segmentation src/segmentation.cpp)
 add_executable(registration src/registration.cpp)
+add_executable(registration2d src/registration2d.cpp)
+add_executable(features src/features.cpp)
+
 
 target_link_libraries(volume Utils)
 target_link_libraries(volume_studies Utils)

@@ -4,6 +4,8 @@
 #include <pcl/registration/gicp.h>
 #include <pcl/registration/icp.h>
 
+#include <pcl/features/normal_3d.h>
+
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
@@ -36,6 +38,7 @@ int main(int argc, char **argv)
 
     PointCloudT::Ptr cloud_icp = pcl::make_shared<PointCloudT>();
     PointCloudT::Ptr cloud_gicp = pcl::make_shared<PointCloudT>();
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_nicp = pcl::make_shared<pcl::PointCloud<pcl::PointNormal>>();
 
     bool generateOutput = false;
 
@@ -79,6 +82,9 @@ int main(int argc, char **argv)
     // sor.setInputCloud(cloud_source);
     // sor.filter(*cloud_source);
 
+    
+    
+    pcl::IterativeClosestPointWithNormals<pcl::PointNormal,pcl::PointNormal> n_icp;
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> g_icp;
 
@@ -91,6 +97,27 @@ int main(int argc, char **argv)
 
     std::cout << "Score: " << icp.getFitnessScore() << std::endl;
     std::cout << "Has Converged : " << icp.hasConverged() << std::endl;
+
+    std::cout << "Computing N ICP..." << std::endl;    
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_source_normals ( new pcl::PointCloud<pcl::PointNormal>);
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_target_normals ( new pcl::PointCloud<pcl::PointNormal>);
+    pcl::copyPointCloud<pcl::PointXYZ,pcl::PointNormal>(*cloud_source,*cloud_source_normals);
+    pcl::copyPointCloud<pcl::PointXYZ,pcl::PointNormal>(*cloud_target,*cloud_target_normals);
+
+    pcl::NormalEstimation<pcl::PointXYZ,pcl::PointNormal> normal_est;
+    normal_est.setRadiusSearch(0.5);
+    normal_est.setInputCloud(cloud_source);
+    normal_est.compute(*cloud_source_normals);
+
+    normal_est.setInputCloud(cloud_target);
+    normal_est.compute(*cloud_target_normals);
+
+    n_icp.setInputSource(cloud_source_normals);
+    n_icp.setInputTarget(cloud_target_normals);
+    n_icp.setMaximumIterations(maxit);
+    n_icp.setUseReciprocalCorrespondences(false);
+    n_icp.align(*cloud_nicp);
+    
 
     std::cout << "Computing GICP..." << std::endl;
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne_source;
@@ -128,21 +155,26 @@ int main(int argc, char **argv)
 
     std::cout << "ICP Transformation" << std::endl
               << icp.getFinalTransformation() << std::endl;
+    std::cout << "NICP Transformation" << std::endl
+              << n_icp.getFinalTransformation() << std::endl;              
     std::cout << "GICP Transformation" << std::endl
               << g_icp.getFinalTransformation() << std::endl;
 
-    std::cout << "ICP Euler = " << icp.getFinalTransformation().block<3, 3>(0, 0).eulerAngles(0, 1, 2) << std::endl;
-    std::cout << "GICP Euler = " << g_icp.getFinalTransformation().block<3, 3>(0, 0).eulerAngles(0, 1, 2) << std::endl;
+    // std::cout << "ICP Euler = " << icp.getFinalTransformation().block<3, 3>(0, 0).eulerAngles(0, 1, 2) << std::endl;
+    // std::cout << "GICP Euler = " << g_icp.getFinalTransformation().block<3, 3>(0, 0).eulerAngles(0, 1, 2) << std::endl;
 
     // Eigen::Vector4f source_centroid,gicp_centroid, icp_centroid,target_centroid;
     // pcl::compute3DCentroid(*cloud_source, source_centroid);
     // pcl::compute3DCentroid(*cloud_gicp, gicp_centroid);
     // pcl::compute3DCentroid(*cloud_icp, icp_centroid);
     // pcl::compute3DCentroid(*cloud_target, target_centroid);
+    
 
     // // This is the direction the
     // std::cout << "ICP Centroid Displacement = " << icp_centroid - source_centroid << ::endl;
+
     // std::cout << "GICP Centroid Displacement = " << gicp_centroid - source_centroid << ::endl;
+
     // std::cout << "RAW Centroid Displacement = " << target_centroid - source_centroid << ::endl;
 
     pcl::visualization::PCLVisualizer viewer("Viewer");
@@ -152,12 +184,18 @@ int main(int argc, char **argv)
     viewer.setCameraPosition(0, 0, -2, 0, -1, 0);
     viewer.addPointCloud(cloud_target, "cloud_target");
     viewer.addPointCloud(cloud_source, "cloud_source", v0);
-    viewer.addPointCloud(cloud_gicp, "cloud_gicp", v1);
+    viewer.addPointCloud(cloud_icp, "cloud_icp", v1);
+
+    //workaround because visuaizer cant plot pointnormal
+
+    viewer.addPointCloud<pcl::PointNormal>(cloud_nicp, "cloud_nicp", v1);
+    viewer.addPointCloud(cloud_gicp, "cloud_gicp", v2);
     viewer.addCoordinateSystem(0.1, "ref");
 
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "cloud_source");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "cloud_target");
-
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "cloud_icp");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 1, "cloud_nicp");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "cloud_gicp");
 
     if (generateOutput)
