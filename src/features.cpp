@@ -88,13 +88,13 @@ double pseudoAngle2(const pcl::PointXYZ &pt)
 
 void debugKey (const pcl::visualization::KeyboardEvent& key, void* cookie){
     bool* keyPressed = (bool*)cookie;
-    if(key.getKeyCode() == 'a')
+    if(key.getKeyCode() == 'a' && key.keyDown() == true)
         *keyPressed = true;
 
 }
 
-template <typename T>
-void PointCovariance(const pcl::PointCloud<T> &input_cloud, int N, float *covariances)
+template <class T>
+void ExtractFeature(const pcl::PointCloud<T> &input_cloud, int N, float *covariances)
 {
     
     pcl::PointCloud<pcl::PointXYZ>::Ptr window_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -118,69 +118,90 @@ void PointCovariance(const pcl::PointCloud<T> &input_cloud, int N, float *covari
     *keyPressed = false;
     viewer->registerKeyboardCallback(debugKey,keyPressed);
     // window_cloud.resize(N);
-    for (int i = N; i < input_cloud.size() - N; i++)
+    int count = 0;
+    for (int i = 0; i < input_cloud.size() - N; i++)
     {
-        int count = 0;
+        
         window_cloud->clear();
         window_cloud->push_back(input_cloud.points[i]);
-        for (int j = 1; j < N; ++j)
-        {
-            window_cloud->push_back(input_cloud.points[i + j]);
-            window_cloud->push_back(input_cloud.points[i - j]);
+        for(int j=1;j<N;++j){
+            window_cloud->push_back(input_cloud.points[i+j]);
         }
 
+        cout << "## ITERATION " << count++ << " ##" << endl;
         for (auto it : window_cloud->points)
         {
             cout << it << endl;
         }
 
-        cout << "Centroid..." << endl;
 
-        pcl::PointXYZ xyz_centroid;
-        pcl::computeCentroid(*window_cloud, xyz_centroid);
-        cout << xyz_centroid << endl;
 
-        cout << "Covariance..." << endl;
+        // cout << "Centroid..." << endl;
 
-        float x_ = 0;
-        for (auto it : window_cloud->points)
-        {
-            x_ += (it.x - xyz_centroid.x)*(it.x - xyz_centroid.x);
-        }
+        // pcl::PointXYZ xyz_centroid;
+        // pcl::computeCentroid(*window_cloud, xyz_centroid);
+        // cout << xyz_centroid << endl;
 
-        // x_ /= 3;
-        cout << "x_ = " << x_ << endl;
+        // cout << "Covariance..." << endl;
 
-        Eigen::Matrix3f covariance;
-        pcl::computeCovarianceMatrix(*window_cloud,xyz_centroid.getVector4fMap(), covariance);
-        cout << covariance << endl;
-        // cout << covariance.trace() << endl;
+        // float x_ = 0;
+        // for (auto it : window_cloud->points)
+        // {
+        //     x_ += (it.x - xyz_centroid.x)*(it.x - xyz_centroid.x);
+        // }
 
-        if(covariance.trace() > 1){ // probable edges
-            *feature_points+= *window_cloud;
-            i += N;
-        }
+        // // x_ /= 3;
+        // cout << "x_ = " << x_ << endl;
+
+        // Eigen::Matrix3f covariance;
+        // pcl::computeCovarianceMatrix(*window_cloud,xyz_centroid.getVector4fMap(), covariance);
+        // cout << covariance << endl;
+        // // cout << covariance.trace() << endl;
+
+        // if(covariance.trace() > 1){ // probable edges
+        //     *feature_points+= *window_cloud;
+        //     i += N;
+        // }
         
+        int count_ = 0;
+        viewer->removeAllShapes();
+        Eigen::MatrixXf Y_(N,1);
+        Eigen::MatrixXf X_(N,2);
+        for( pcl::PointCloud<pcl::PointXYZ>::iterator it = window_cloud->begin(); it != window_cloud->end(); ++it){
+            // std::string arrow_name = "arrow" + std::to_string(count_);
+            // viewer->addArrow(*it,*(it+1),1,0,0,arrow_name);
+            X_(count_,0) = it->x;
+            X_(count_,1) = 1;
+
+            Y_(count_,0) = it->y;
+
+
+            count_++;
+        }
+        cout << "Regression ##" << endl;
+        cout << "X_ = " << X_ << endl;
+        cout << "Y_ = " << Y_ << endl;
+
+        cout << "[a,b] = " << X_.colPivHouseholderQr().solve(Y_) << endl;
         
+
         viewer->updatePointCloud(window_cloud,"window");
         viewer->updatePointCloud(feature_points,"feature_points");
+        
+        while(*keyPressed == false){
+            viewer->spinOnce();
+        }
+        *keyPressed = false;
+        
 
-        // while(*keyPressed == false){
-        //     viewer->spinOnce();
-        // }
-        // *keyPressed = false;
-        
-        
-        
-        // std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        // viewer->spinOnce();
+
         
 
         
     }
-    // while(!viewer->wasStopped())
-    viewer->spin();
-    // getchar();
+    
+    
+    
 }
 
 bool compareAngle2(pcl::PointXYZ &pt1, pcl::PointXYZ &pt2)
@@ -229,20 +250,12 @@ int main(int argc, char **argv)
     int cloud_size = input_cloud->size();
     PCL_INFO("Number of points -> %d \n", input_cloud->size());
 
-    // Processing
+    
 
-    //       const int& imuHistorySize_ = 200,
-    //   const int& nFeatureRegions_ = 6,
-    //   const int& curvatureRegion_ = 5,
-    //   const int& maxCornerSharp_ = 2,
-    //   const int& maxSurfaceFlat_ = 4,
-    //   const float& lessFlatFilterSize_ = 0.2,
-    //   const float& surfaceCurvatureThreshold_ = 0.1);
-
-    std::sort(input_cloud->begin(), input_cloud->end(), compareAngle2); //PseudoAngle
+    // std::sort(input_cloud->begin(), input_cloud->end(), compareAngle2); //PseudoAngle
 
     float covariances[2000] = {0};
-    PointCovariance<pcl::PointXYZ>(*input_cloud, 6, covariances);
+    ExtractFeature<pcl::PointXYZ>(*input_cloud, 10, covariances);
 
     pcl::visualization::PCLVisualizer viewer;
 
