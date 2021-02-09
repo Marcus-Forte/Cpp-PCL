@@ -9,9 +9,9 @@
 
 // Fill
 #include <pcl/common/centroid.h>
-
 #include <pcl/search/kdtree.h>
 #include <pcl/octree/octree_search.h>
+#include <pcl/common/distances.h>
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <thread>
@@ -104,6 +104,14 @@ static void setColorMap(int n,int max,pcl::PointXYZRGB& pt){
 	// 2.5D volume
 	static float computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud_in, float res);
 
+
+	//Feautres
+	template <class T>
+	static void EdgeDetection(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &features_cloud, int N);
+
+	template <class T>
+	static void PlaneDetection(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &features_cloud, int N, int N_planar);
+	
 	// Mesh volume ..
 
 private:

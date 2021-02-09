@@ -1,4 +1,5 @@
 #include <iostream>
+#include "PCUtils.h"
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/registration/gicp.h>
@@ -13,85 +14,33 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/console/parse.h>
 
-#include <pcl/common/distances.h>
-
-template <class T>
-void EdgeDetection(const pcl::PointCloud<T> &input_cloud,pcl::PointCloud<T>& features_cloud, int N)
-{
-    pcl::PointCloud<pcl::PointXYZ>::Ptr window_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr input_buffer(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr feature_points(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::copyPointCloud(input_cloud, *input_buffer);
-
-    // Debug Viewing
-    // pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Debug"));
-    // viewer->addPointCloud(input_buffer, "input");
-    // viewer->addPointCloud(window_cloud, "window");
-    // viewer->addPointCloud(feature_points, "feature_points");
-    // viewer->addCoordinateSystem(1, "ref");
-    // viewer->setBackgroundColor(0, 0, 0);
-    // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "window");
-    // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "window");
-    // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "feature_points");
-    // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "feature_points");
-    // bool *keyPressed = new bool;
-    // *keyPressed = false;
-    // // viewer->registerKeyboardCallback(debugKey, keyPressed);
-
-    // Main Loop
-    for (int i = N; i < input_cloud.size() - N; i++)
-    {
-
-        window_cloud->clear();
-        window_cloud->push_back(input_cloud.points[i]);
-        for (int j = 1; j < N; ++j)
-        {
-            window_cloud->push_back(input_cloud.points[i + j]);
-            window_cloud->push_back(input_cloud.points[i - j]);
-        }
-
-        T centroid;
-        pcl::computeCentroid(*window_cloud, centroid);
-        cout << "Query Point ->" << window_cloud->points[0] << endl;
-        cout << "Centroid -> " << centroid << endl;
-
-        float resolution = 9999;
-        float dist;
-        for (auto it = window_cloud->begin() + 1; it < window_cloud->end(); ++it)
-        {
-            cout << *it << endl;
-            dist = pcl::euclideanDistance(window_cloud->points[0], (*it));
-            if (dist < resolution)
-                resolution = dist;
-        }
-
-        float isEdge = (centroid.getVector3fMap() - window_cloud->points[0].getVector3fMap()).norm();
-        float lambda = 5;
-        if (isEdge > lambda * resolution){
-            cout << "Edge!" << endl;
-            feature_points->push_back(*(window_cloud->points.end()-2));
-            feature_points->push_back(*(window_cloud->points.end()-4)); //last two
-            i += 2*N;
-        }
-
-        // viewer->updatePointCloud(window_cloud, "window");
-        // viewer->updatePointCloud(feature_points, "feature_points");
-
-        // while (*keyPressed == false)
-        // {
-        //     viewer->spinOnce();
-        // }
-        // *keyPressed = false;
-
-
-    }
-
-    pcl::copyPointCloud(*feature_points,features_cloud);
-}
-
-
+#include <pcl/filters/passthrough.h>
 
 using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
+
+void partition_cloud(const PointCloudT &input, std::vector<PointCloudT> &partitions, int N)
+{
+    int total_size = input.size();
+    int block_size = total_size / N;
+
+    PointCloudT PC;
+    int block_count = 0;
+    int block_index = 0;
+    for (int i = 0; i < total_size; ++i)
+    {
+        PC.push_back(input.points[i]);
+        block_count++;
+        if (block_count > block_size)
+        {
+            std::cout << "Pushing.. " << block_index << std::endl;
+            partitions.push_back(PC);
+            PC.clear();
+            block_count = 0;
+            block_index++;
+        }
+    }
+    partitions.push_back(PC); // dumb
+}
 
 void printUsage()
 {
@@ -110,8 +59,8 @@ int main(int argc, char **argv)
     PointCloudT::Ptr cloud_source = pcl::make_shared<PointCloudT>();  //Voxel
     PointCloudT::Ptr cloud_source_ = pcl::make_shared<PointCloudT>(); //Raw
 
-    PointCloudT::Ptr cloud_target_ = pcl::make_shared<PointCloudT>(); //Raw
     PointCloudT::Ptr cloud_target = pcl::make_shared<PointCloudT>();  // Voxel
+    PointCloudT::Ptr cloud_target_ = pcl::make_shared<PointCloudT>(); //Raw
 
     PointCloudT::Ptr cloud_icp = pcl::make_shared<PointCloudT>();
     PointCloudT::Ptr cloud_gicp = pcl::make_shared<PointCloudT>();
@@ -135,6 +84,19 @@ int main(int argc, char **argv)
     }
 
     // Prefiltering
+    pcl::PassThrough<pcl::PointXYZ> pass_through;
+    // pass_through.setInputCloud(input_clzzz)
+    pass_through.setInputCloud(cloud_source_);
+    pass_through.setFilterFieldName("x");
+    pass_through.setFilterLimits(0, 0.05); // remove weird points close to origin
+    pass_through.setNegative(true);
+    pass_through.filter(*cloud_source_);
+
+    pass_through.setInputCloud(cloud_target_);
+    pass_through.setFilterFieldName("x");
+    pass_through.setFilterLimits(0, 0.05); // remove weird points close to origin
+    pass_through.setNegative(true);
+    pass_through.filter(*cloud_target_);
 
     // Voxel
     float res = atof(argv[3]);
@@ -147,37 +109,116 @@ int main(int argc, char **argv)
     voxel.setInputCloud(cloud_source_);
     voxel.filter(*cloud_source);
 
-    pcl::visualization::PCLVisualizer viewer("Viewer");
-    
-    pcl::IterativeClosestPoint<pcl::PointXYZ,pcl::PointXYZ> icp;
-    icp.setInputSource(cloud_source);
-    icp.setInputTarget(cloud_target);
+    // Partiticon clouds
+    int N_Partitions = 4;
+    std::vector<PointCloudT> cloud_source_partitions;
+    partition_cloud(*cloud_source, cloud_source_partitions, N_Partitions);
+    std::cout << "partition OK.." << cloud_source_partitions.size() << std::endl;
 
-    pcl::registration::TransformationEstimation2D<pcl::PointXYZ,pcl::PointXYZ>::Ptr te_2d (new pcl::registration::TransformationEstimation2D<pcl::PointXYZ,pcl::PointXYZ>);
-    icp.setTransformationEstimation(te_2d);
-    icp.setTransformationEpsilon(1e-8);
-    icp.setMaximumIterations(maxit);
-    icp.setMaxCorrespondenceDistance(0.1);
+    std::vector<PointCloudT> cloud_target_partitions;
+    partition_cloud(*cloud_target, cloud_target_partitions, N_Partitions);
+    std::cout << "partition OK.." << cloud_target_partitions.size() << std::endl;
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZ>);
-    icp.align(*cloud_aligned);
-    
-    int vp0,vp1;
-    viewer.createViewPort(0,0,0.5,1,vp0);
-    viewer.createViewPort(0.5,0,1,1,vp1);
-    viewer.addPointCloud(cloud_target,"target",0);
-    viewer.addPointCloud(cloud_source,"source",vp0);
-    viewer.addPointCloud(cloud_aligned,"aligned",vp1);
+    // pcl::visualization::PCLVisualizer viewer__("test");
+    // for(int j=0;j<N_Partitions;++j){
+    //     PointCloudT::Ptr pc_buffer (new PointCloudT);
+    //     *pc_buffer = cloud_partitions[j];
+    //     pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZ> random_color(pc_buffer);
+    //     std::cout << "Adding point clouds" << std::endl;
+    //     viewer__.addPointCloud(pc_buffer,random_color,"cloud" + std::to_string(j));
+    // }
 
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,1,0,0,"target");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,0,1,0,"source");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,1,1,0,"aligned");
+    // while(!viewer__.wasStopped()){
+    //     viewer__.spin();
+    // }
+    // exit(0);
 
-    while (!viewer.wasStopped()){
-        viewer.spin();
+    //Feature Extraction
+    PointCloudT::Ptr cloud_source_features(new PointCloudT); //edges
+    PointCloudT::Ptr cloud_target_features(new PointCloudT);
+
+    PointCloudT::Ptr cloud_source_features2(new PointCloudT); //planes
+    PointCloudT::Ptr cloud_target_features2(new PointCloudT);
+
+    for (int i = 0; i < N_Partitions; ++i)
+    {
+        int N = 7; // Neighboors
+        
+        PCUtils::EdgeDetection<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, N);
+        PCUtils::EdgeDetection<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, N);
+
+        // Add Edges
+        *cloud_source_features += *cloud_source_features2;
+        *cloud_target_features += *cloud_target_features2;
+
+        // PCUtils::PlaneDetection<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, N, 4);
+        // PCUtils::PlaneDetection<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, N, 4);
+
+        // Add Planes
+        // *cloud_source_features += *cloud_source_features2;
+        // *cloud_target_features += *cloud_target_features2;
     }
 
- 
+    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+    icp.setInputSource(cloud_source_features);
+    icp.setInputTarget(cloud_target_features);
+
+    // pcl::registration::TransformationEstimation2D<pcl::PointXYZ,pcl::PointXYZ>::Ptr te_2d (new pcl::registration::TransformationEstimation2D<pcl::PointXYZ,pcl::PointXYZ>);
+    // icp.setTransformationEstimation(te_2d);
+    icp.setTransformationEpsilon(1e-8);
+    icp.setMaximumIterations(maxit);
+    // icp.setMaxCorrespondenceDistance(0.2);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_aligned(new pcl::PointCloud<pcl::PointXYZ>);
+    icp.align(*cloud_aligned);
+    Eigen::Matrix4f transform = icp.getFinalTransformation();
+
+    PointCloudT::Ptr cloud_aligned_features(new PointCloudT);
+    *cloud_aligned_features = *cloud_aligned;
+
+    pcl::transformPointCloud(*cloud_source, *cloud_aligned, transform);
+
+    pcl::visualization::PCLVisualizer viewer("Viewer");
+
+    int vp0, vp1;
+    viewer.createViewPort(0, 0, 0.5, 1, vp0);
+    viewer.createViewPort(0.5, 0, 1, 1, vp1);
+    viewer.addPointCloud(cloud_target, "target", 0);
+    viewer.addPointCloud(cloud_source, "source", vp0);
+    viewer.addPointCloud(cloud_aligned, "aligned", vp1);
+    viewer.addCoordinateSystem(1, "ref", 0);
+    //Edges
+    viewer.addPointCloud(cloud_target_features, "target features", 0);
+    viewer.addPointCloud(cloud_source_features, "source features", vp0);
+    viewer.addPointCloud(cloud_aligned_features, "aligned features", vp1);
+    // Planes
+    viewer.addPointCloud(cloud_target_features2, "target features 2", 0);
+    viewer.addPointCloud(cloud_source_features2, "source features 2", vp0);
+    // viewer.addPointCloud(cloud_aligned_features, "aligned features", vp1);
+
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "target");  //red
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "source");  //green
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "aligned"); // yellow
+
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "target features");  // red
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "source features");  // green
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "aligned features"); // yellow
+
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 1, "target features 2"); // red
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 0, 1, "source features 2"); // green
+
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 8, "source features");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 8, "target features");
+
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 14, "source features 2");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 14, "target features 2");
+
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 8, "aligned features");
+
+    while (!viewer.wasStopped())
+    {
+        viewer.spin();
+    }
 
     if (generateOutput)
     {

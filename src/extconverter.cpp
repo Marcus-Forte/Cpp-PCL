@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 //							std::cout << "custom dir : " << custom_dir << std::endl;
 							break;
 					case '?':
-							std::cerr << "Specify the requried directory!" << std::endl;
+							std::cerr << "Specify the required directory!" << std::endl;
 							exit(-1);
 							break;
 

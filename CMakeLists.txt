@@ -44,10 +44,12 @@ add_executable(features_registration src/registration2d_features.cpp)
 add_executable(features src/features.cpp)
 
 
+# linkage
 target_link_libraries(volume Utils)
 target_link_libraries(volume_studies Utils)
 target_link_libraries(geocrop Utils)
 target_link_libraries(visualize Utils)
+target_link_libraries(features_registration Utils)
 
 
 # converter

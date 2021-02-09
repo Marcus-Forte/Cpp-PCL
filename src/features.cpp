@@ -106,19 +106,19 @@ void EdgeDetection(const pcl::PointCloud<T> &input_cloud,pcl::PointCloud<T>& fea
     pcl::copyPointCloud(input_cloud, *input_buffer);
 
     // Debug Viewing
-    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Debug"));
-    viewer->addPointCloud(input_buffer, "input");
-    viewer->addPointCloud(window_cloud, "window");
-    viewer->addPointCloud(feature_points, "feature_points");
-    viewer->addCoordinateSystem(1, "ref");
-    viewer->setBackgroundColor(0, 0, 0);
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "window");
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "window");
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "feature_points");
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "feature_points");
-    bool *keyPressed = new bool;
-    *keyPressed = false;
-    viewer->registerKeyboardCallback(debugKey, keyPressed);
+    // pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Debug"));
+    // viewer->addPointCloud(input_buffer, "input");
+    // viewer->addPointCloud(window_cloud, "window");
+    // viewer->addPointCloud(feature_points, "feature_points");
+    // viewer->addCoordinateSystem(1, "ref");
+    // viewer->setBackgroundColor(0, 0, 0);
+    // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "window");
+    // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "window");
+    // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "feature_points");
+    // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "feature_points");
+    // bool *keyPressed = new bool;
+    // *keyPressed = false;
+    // viewer->registerKeyboardCallback(debugKey, keyPressed);
 
     // Main Loop
     for (int i = N; i < input_cloud.size() - N; i++)
@@ -148,7 +148,7 @@ void EdgeDetection(const pcl::PointCloud<T> &input_cloud,pcl::PointCloud<T>& fea
         }
 
         float isEdge = (centroid.getVector3fMap() - window_cloud->points[0].getVector3fMap()).norm();
-        float lambda = 5;
+        float lambda = 3;
         if (isEdge > lambda * resolution){
             cout << "Edge!" << endl;
             feature_points->push_back(*(window_cloud->points.end()-2));
@@ -156,8 +156,8 @@ void EdgeDetection(const pcl::PointCloud<T> &input_cloud,pcl::PointCloud<T>& fea
             i += 2*N;
         }
 
-        viewer->updatePointCloud(window_cloud, "window");
-        viewer->updatePointCloud(feature_points, "feature_points");
+        // viewer->updatePointCloud(window_cloud, "window");
+        // viewer->updatePointCloud(feature_points, "feature_points");
 
         // while (*keyPressed == false)
         // {
@@ -302,7 +302,7 @@ int main(int argc, char **argv)
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr features_cloud ( new pcl::PointCloud<pcl::PointXYZ>);
     
-    EdgeDetection<pcl::PointXYZ>(*input_cloud,*features_cloud,5);
+    EdgeDetection<pcl::PointXYZ>(*input_cloud,*features_cloud,7);
 
     pcl::visualization::PCLVisualizer viewer("Feature Points");
     viewer.addPointCloud(input_cloud,"input");
@@ -310,7 +310,7 @@ int main(int argc, char **argv)
     viewer.addCoordinateSystem(1,"ref");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,1,1,1,"input");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,0,1,0,"features");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,8,"features");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,6,"features");
 
 
     while(!viewer.wasStopped()){

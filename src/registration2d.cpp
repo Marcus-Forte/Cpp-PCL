@@ -58,7 +58,20 @@ int main(int argc, char **argv)
         return (-1);
     }
 
-    // Prefiltering
+       // Prefiltering
+    pcl::PassThrough<pcl::PointXYZ> pass_through;
+    // pass_through.setInputCloud(input_clzzz)
+    pass_through.setInputCloud(cloud_source_);
+    pass_through.setFilterFieldName("x");
+    pass_through.setFilterLimits(0, 0.05); // remove weird points close to origin
+    pass_through.setNegative(true);
+    pass_through.filter(*cloud_source_);
+
+    pass_through.setInputCloud(cloud_target_);
+    pass_through.setFilterFieldName("x");
+    pass_through.setFilterLimits(0, 0.05); // remove weird points close to origin
+    pass_through.setNegative(true);
+    pass_through.filter(*cloud_target_);
 
     // Voxel
     float res = atof(argv[3]);
@@ -81,7 +94,7 @@ int main(int argc, char **argv)
     icp.setTransformationEstimation(te_2d);
     icp.setTransformationEpsilon(1e-8);
     icp.setMaximumIterations(maxit);
-    icp.setMaxCorrespondenceDistance(0.1);
+    // icp.setMaxCorrespondenceDistance(0.1);
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_aligned (new pcl::PointCloud<pcl::PointXYZ>);
     icp.align(*cloud_aligned);
