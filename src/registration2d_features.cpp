@@ -1,5 +1,6 @@
 #include <iostream>
-#include "PCUtils.h"
+// #include "PCUtils.h"
+#include "Features.h"
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/registration/gicp.h>
@@ -17,6 +18,13 @@
 #include <pcl/filters/passthrough.h>
 
 using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
+
+void PointPickCallback(const pcl::visualization::PointPickingEvent& event, void* cookie){
+    float x,y,z;
+    event.getPoint(x,y,z);
+std::cout << "Pt ID: " << event.getPointIndex() << "(" << x << "," << y << "," << z << ")" << std::endl;
+
+}
 
 void partition_cloud(const PointCloudT &input, std::vector<PointCloudT> &partitions, int N)
 {
@@ -110,7 +118,7 @@ int main(int argc, char **argv)
     voxel.filter(*cloud_source);
 
     // Partiticon clouds
-    int N_Partitions = 4;
+    int N_Partitions = 1;
     std::vector<PointCloudT> cloud_source_partitions;
     partition_cloud(*cloud_source, cloud_source_partitions, N_Partitions);
     std::cout << "partition OK.." << cloud_source_partitions.size() << std::endl;
@@ -119,19 +127,6 @@ int main(int argc, char **argv)
     partition_cloud(*cloud_target, cloud_target_partitions, N_Partitions);
     std::cout << "partition OK.." << cloud_target_partitions.size() << std::endl;
 
-    // pcl::visualization::PCLVisualizer viewer__("test");
-    // for(int j=0;j<N_Partitions;++j){
-    //     PointCloudT::Ptr pc_buffer (new PointCloudT);
-    //     *pc_buffer = cloud_partitions[j];
-    //     pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZ> random_color(pc_buffer);
-    //     std::cout << "Adding point clouds" << std::endl;
-    //     viewer__.addPointCloud(pc_buffer,random_color,"cloud" + std::to_string(j));
-    // }
-
-    // while(!viewer__.wasStopped()){
-    //     viewer__.spin();
-    // }
-    // exit(0);
 
     //Feature Extraction
     PointCloudT::Ptr cloud_source_features(new PointCloudT); //edges
@@ -144,19 +139,21 @@ int main(int argc, char **argv)
     {
         int N = 7; // Neighboors
         
-        PCUtils::EdgeDetection<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, N);
-        PCUtils::EdgeDetection<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, N);
+        // Features::EdgeDetection<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, N);
+        // Features::EdgeDetection<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, N);
 
-        // Add Edges
-        *cloud_source_features += *cloud_source_features2;
-        *cloud_target_features += *cloud_target_features2;
-
-        // PCUtils::PlaneDetection<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, N, 4);
-        // PCUtils::PlaneDetection<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, N, 4);
-
-        // Add Planes
+        // // Add Edges
         // *cloud_source_features += *cloud_source_features2;
         // *cloud_target_features += *cloud_target_features2;
+
+        std::cout << "Source..." << std::endl;
+        Features::ComputeSmoothness<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, N, 4);
+        std::cout << "Target..." << std::endl;
+        Features::ComputeSmoothness<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, N, 4);
+
+        // Add Planes
+        *cloud_source_features += *cloud_source_features2;
+        *cloud_target_features += *cloud_target_features2;
     }
 
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
@@ -187,6 +184,8 @@ int main(int argc, char **argv)
     viewer.addPointCloud(cloud_source, "source", vp0);
     viewer.addPointCloud(cloud_aligned, "aligned", vp1);
     viewer.addCoordinateSystem(1, "ref", 0);
+    // viewer.registerPointPickingCallback(boost::bind(PointPickCallback,_1,_2));
+    viewer.registerPointPickingCallback(PointPickCallback);
     //Edges
     viewer.addPointCloud(cloud_target_features, "target features", 0);
     viewer.addPointCloud(cloud_source_features, "source features", vp0);
@@ -209,10 +208,8 @@ int main(int argc, char **argv)
 
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 8, "source features");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 8, "target features");
-
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 14, "source features 2");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 14, "target features 2");
-
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 8, "aligned features");
 
     while (!viewer.wasStopped())

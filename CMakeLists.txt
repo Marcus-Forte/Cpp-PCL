@@ -27,6 +27,7 @@ link_libraries(${PCL_LIBRARIES} -pthread OpenMP::OpenMP_CXX)
 
 
 add_library(Utils STATIC src/PCUtils.cpp)
+# add_library(Features STATIC src/Features.cpp) # header only
 
 add_executable(pcl_view_example src/pcl_view_example.cpp)
 add_executable(filters src/filters.cpp)
@@ -49,7 +50,7 @@ target_link_libraries(volume Utils)
 target_link_libraries(volume_studies Utils)
 target_link_libraries(geocrop Utils)
 target_link_libraries(visualize Utils)
-target_link_libraries(features_registration Utils)
+ #target_link_libraries(features_registration Utils) #header only
 
 
 # converter
