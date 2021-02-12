@@ -26,35 +26,43 @@ std::cout << "Pt ID: " << event.getPointIndex() << "(" << x << "," << y << "," <
 
 }
 
+// OK!
 void partition_cloud(const PointCloudT &input, std::vector<PointCloudT> &partitions, int N)
 {
     int total_size = input.size();
     int block_size = total_size / N;
     int remainder = total_size % N;
 
-    std::cout << "Points: " << total_size << std::endl;
-    std::cout << "Block Size: " << block_size << std::endl;
-    std::cout << "Remainder: " << remainder << std::endl;
-    
-
+    // std::cout << "Points: " << total_size << std::endl;
+    // std::cout << "Number of Partitions: " << N << std::endl;
+    // std::cout << "Block Size: " << block_size << std::endl;
+    // std::cout << "Remainder: " << remainder << std::endl;
 
     PointCloudT PC;
-    int block_count = 0;
-    int block_index = 0;
-    for (int i = 0; i < total_size; ++i)
-    {
-        PC.push_back(input.points[i]);
-        block_count++;
-        if (block_count > block_size)
-        {
-            std::cout << "Pushing.. " << block_index << std::endl;
-            partitions.push_back(PC);
-            PC.clear();
-            block_count = 0;
-            block_index++;
+    partitions.resize(N);
+
+    pcl::PointXYZ pt;
+    for(int i = 0;i < N; i++){
+        // cout << "Partition: " << i << endl;
+        for (int j =0;j < block_size ;j++){
+            pt = input.points[i*block_size + j];
+            // cout << "index = " << i*block_size + j << endl;
+            partitions[i].points.push_back (pt);
         }
     }
-    partitions.push_back(PC); // dumb
+
+        for(int i=0;i<remainder;++i){
+            
+            pt = input.points[N*block_size + i];
+            // cout << "Remainder index: " << N*block_size + i << endl;
+                partitions[N-1].points.push_back(pt);
+
+        }
+    
+
+        
+  
+    
 }
 
 void printUsage()
@@ -116,16 +124,23 @@ int main(int argc, char **argv)
     // Voxel
     float res = atof(argv[3]);
     int maxit = atoi(argv[4]);
+
+    if( res != 0.0){
     pcl::VoxelGrid<pcl::PointXYZ> voxel;
     voxel.setLeafSize(res, res, res);
     voxel.setInputCloud(cloud_target_);
     voxel.filter(*cloud_target);
-
+    
     voxel.setInputCloud(cloud_source_);
     voxel.filter(*cloud_source);
 
+    } else {
+        *cloud_target = *cloud_target_;
+        *cloud_source = *cloud_source_;
+    }
+
     // Partiticon clouds
-    int N_Partitions = 1;
+    int N_Partitions = 3;
     std::vector<PointCloudT> cloud_source_partitions;
     partition_cloud(*cloud_source, cloud_source_partitions, N_Partitions);
     std::cout << "partition OK.." << cloud_source_partitions.size() << std::endl;
