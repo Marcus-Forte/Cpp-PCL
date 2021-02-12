@@ -19,11 +19,11 @@
 
 using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
 
-void PointPickCallback(const pcl::visualization::PointPickingEvent& event, void* cookie){
-    float x,y,z;
-    event.getPoint(x,y,z);
-std::cout << "Pt ID: " << event.getPointIndex() << "(" << x << "," << y << "," << z << ")" << std::endl;
-
+void PointPickCallback(const pcl::visualization::PointPickingEvent &event, void *cookie)
+{
+    float x, y, z;
+    event.getPoint(x, y, z);
+    std::cout << "Pt ID: " << event.getPointIndex() << "(" << x << "," << y << "," << z << ")" << std::endl;
 }
 
 // OK!
@@ -42,27 +42,24 @@ void partition_cloud(const PointCloudT &input, std::vector<PointCloudT> &partiti
     partitions.resize(N);
 
     pcl::PointXYZ pt;
-    for(int i = 0;i < N; i++){
+    for (int i = 0; i < N; i++)
+    {
         // cout << "Partition: " << i << endl;
-        for (int j =0;j < block_size ;j++){
-            pt = input.points[i*block_size + j];
+        for (int j = 0; j < block_size; j++)
+        {
+            pt = input.points[i * block_size + j];
             // cout << "index = " << i*block_size + j << endl;
-            partitions[i].points.push_back (pt);
+            partitions[i].points.push_back(pt);
         }
     }
 
-        for(int i=0;i<remainder;++i){
-            
-            pt = input.points[N*block_size + i];
-            // cout << "Remainder index: " << N*block_size + i << endl;
-                partitions[N-1].points.push_back(pt);
+    for (int i = 0; i < remainder; ++i)
+    {
 
-        }
-    
-
-        
-  
-    
+        pt = input.points[N * block_size + i];
+        // cout << "Remainder index: " << N*block_size + i << endl;
+        partitions[N - 1].points.push_back(pt);
+    }
 }
 
 void printUsage()
@@ -125,22 +122,24 @@ int main(int argc, char **argv)
     float res = atof(argv[3]);
     int maxit = atoi(argv[4]);
 
-    if( res != 0.0){
-    pcl::VoxelGrid<pcl::PointXYZ> voxel;
-    voxel.setLeafSize(res, res, res);
-    voxel.setInputCloud(cloud_target_);
-    voxel.filter(*cloud_target);
-    
-    voxel.setInputCloud(cloud_source_);
-    voxel.filter(*cloud_source);
+    if (res != 0.0)
+    {
+        pcl::VoxelGrid<pcl::PointXYZ> voxel;
+        voxel.setLeafSize(res, res, res);
+        voxel.setInputCloud(cloud_target_);
+        voxel.filter(*cloud_target);
 
-    } else {
+        voxel.setInputCloud(cloud_source_);
+        voxel.filter(*cloud_source);
+    }
+    else
+    {
         *cloud_target = *cloud_target_;
         *cloud_source = *cloud_source_;
     }
 
     // Partiticon clouds
-    int N_Partitions = 3;
+    int N_Partitions = 4;
     std::vector<PointCloudT> cloud_source_partitions;
     partition_cloud(*cloud_source, cloud_source_partitions, N_Partitions);
     std::cout << "partition OK.." << cloud_source_partitions.size() << std::endl;
@@ -148,7 +147,6 @@ int main(int argc, char **argv)
     std::vector<PointCloudT> cloud_target_partitions;
     partition_cloud(*cloud_target, cloud_target_partitions, N_Partitions);
     std::cout << "partition OK.." << cloud_target_partitions.size() << std::endl;
-
 
     //Feature Extraction
     PointCloudT::Ptr cloud_source_features(new PointCloudT); //edges
@@ -160,20 +158,20 @@ int main(int argc, char **argv)
     for (int i = 0; i < N_Partitions; ++i)
     {
         int N = 7; // Neighboors
-        
-        // Features::EdgeDetection<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, N);
-        // Features::EdgeDetection<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, N);
+
+        Features::EdgeDetection<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, 3,8);
+        Features::EdgeDetection<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, 3,8);
 
         // // Add Edges
-        // *cloud_source_features += *cloud_source_features2;
-        // *cloud_target_features += *cloud_target_features2;
+        *cloud_source_features += *cloud_source_features2;
+        *cloud_target_features += *cloud_target_features2;
 
         std::cout << "Source..." << std::endl;
-        Features::ComputeSmoothness<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, N, 4);
+        Features::ComputeSmoothness<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_features2, N, 8);
         std::cout << "Target..." << std::endl;
-        Features::ComputeSmoothness<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, N, 4);
+        Features::ComputeSmoothness<pcl::PointXYZ>(cloud_target_partitions[i], *cloud_target_features2, N, 8);
 
-        // Add Planes
+        // Add Smooth Points .. may vary 
         *cloud_source_features += *cloud_source_features2;
         *cloud_target_features += *cloud_target_features2;
     }

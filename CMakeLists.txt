@@ -42,7 +42,7 @@ add_executable(segmentation src/segmentation.cpp)
 add_executable(registration src/registration.cpp)
 add_executable(registration2d src/registration2d.cpp)
 add_executable(features_registration src/registration2d_features.cpp)
-add_executable(features src/features.cpp)
+add_executable(features src/features_app.cpp)
 
 
 # linkage
