@@ -30,6 +30,13 @@ void partition_cloud(const PointCloudT &input, std::vector<PointCloudT> &partiti
 {
     int total_size = input.size();
     int block_size = total_size / N;
+    int remainder = total_size % N;
+
+    std::cout << "Points: " << total_size << std::endl;
+    std::cout << "Block Size: " << block_size << std::endl;
+    std::cout << "Remainder: " << remainder << std::endl;
+    
+
 
     PointCloudT PC;
     int block_count = 0;
@@ -169,6 +176,8 @@ int main(int argc, char **argv)
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_aligned(new pcl::PointCloud<pcl::PointXYZ>);
     icp.align(*cloud_aligned);
     Eigen::Matrix4f transform = icp.getFinalTransformation();
+
+    std::cout << "Final Transform" << transform << std::endl;
 
     PointCloudT::Ptr cloud_aligned_features(new PointCloudT);
     *cloud_aligned_features = *cloud_aligned;
