@@ -7,20 +7,58 @@
 #include <pcl/point_cloud.h>
 #include <pcl/io/pcd_io.h>
 
+using namespace std;
+
 class Features
 {
 
-    typedef std::pair<float, int> mypair; //curvature + index
+    typedef std::pair<float, int> query_point; //curvature + index
 
 public:
-    //
     template <class T>
+    static void PartitionCloud(const pcl::PointCloud<T> &input, std::vector<pcl::PointCloud<T>> &partitions, int N_partitions)
+    {
+        int total_size = input.size();
+        int block_size = total_size / N_partitions;
+        int remainder = total_size % N_partitions;
+
+        // std::cout << "Points: " << total_size << std::endl;
+        // std::cout << "Number of Partitions: " << N << std::endl;
+        // std::cout << "Block Size: " << block_size << std::endl;
+        // std::cout << "Remainder: " << remainder << std::endl;
+
+        pcl::PointCloud<T> PC;
+        partitions.resize(N_partitions);
+
+        T pt;
+        for (int i = 0; i < N_partitions; i++)
+        {
+            // cout << "Partition: " << i << endl;
+            for (int j = 0; j < block_size; j++)
+            {
+                pt = input.points[i * block_size + j];
+                // cout << "index = " << i*block_size + j << endl;
+                partitions[i].points.push_back(pt);
+            }
+        }
+
+        for (int i = 0; i < remainder; ++i)
+        {
+
+            pt = input.points[N_partitions * block_size + i];
+            // cout << "Remainder index: " << N*block_size + i << endl;
+            partitions[N_partitions - 1].points.push_back(pt);
+        }
+    }
+
+    //
+    template <typename T>
     static void EdgeDetection(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &features_cloud, int window_size, int n_highest)
     {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr window_cloud(new pcl::PointCloud<pcl::PointXYZ>);        
-        pcl::PointCloud<pcl::PointXYZ>::Ptr feature_points(new pcl::PointCloud<pcl::PointXYZ>);
+        typename pcl::PointCloud<T>::Ptr window_cloud(new pcl::PointCloud<T>);
+        typename pcl::PointCloud<T>::Ptr feature_points(new pcl::PointCloud<T>);
 
-        std::vector<mypair> edge_list;
+        std::vector<query_point> edge_list;
 
         window_cloud->points.resize(window_size + 1); // Query point + window_size
 
@@ -30,21 +68,21 @@ public:
             // WE must preserve centrality over query point i
             window_cloud->points[0] = input_cloud.points[i];
             int count = 1;
-            for (int j = 1; j < window_size; ++j)
-            {
+            for (int j = 1; j <= window_size / 2; ++j)
+            { // Error here
                 window_cloud->points[count] = input_cloud.points[i + j];
                 count++;
                 window_cloud->points[count] = input_cloud.points[i - j];
                 count++;
             }
 
-            cout << "Window: " << i << endl;
-            for (auto it : window_cloud->points)
-            {
-                cout << it << endl;
-            }
+            // cout << "Window: " << i << endl;
+            // for (auto it : window_cloud->points)
+            // {
+            //     cout << it << endl;
+            // }
 
-            cout << endl;
+            // cout << endl;
 
             // [i] , [i+j] , [i + 2j] , [i + 2j] , [i - 2j], ...
 
@@ -67,28 +105,44 @@ public:
             if (isEdge > lambda * resolution)
             {
                 // cout << "Edge!" << endl;
-                feature_points->push_back(*(window_cloud->points.end() - 2));
-                feature_points->push_back(*(window_cloud->points.end() - 4)); //
-                                                                              // i += 2 * N;
+                query_point p;
+                p.first = isEdge;
+                p.second = i;
+                edge_list.push_back(p);
+                // feature_points->push_back(window_cloud->points[0]);
+                // feature_points->push_back(*(window_cloud->points.end() - 4)); //
+                // i += 2 * window_size;
             }
         }
         // Sort highest edges
 
+        if(edge_list.size() > n_highest){
+        std::sort(edge_list.begin(), edge_list.end(), comparator); // low to high
+
+        int index;
+        for (int i = 0; i < n_highest; ++i)
+        {
+            index = (edge_list.end() - 1 - i)->second;
+            feature_points->push_back(input_cloud.points[index]);
+        }
+
         // pcl::copyPointCloud(*feature_points, features_cloud);
         features_cloud = *feature_points;
+        // cout << "Features -> " << features_cloud.size() << endl;
+        }
     }
 
     // Must preallocate
-    template <class T>
+    template <typename T>
     static void ComputeSmoothness(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &features_cloud, int window_size, int n_highest)
     {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr window_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::PointCloud<pcl::PointXYZ>::Ptr feature_points(new pcl::PointCloud<pcl::PointXYZ>);
+        typename pcl::PointCloud<T>::Ptr window_cloud(new pcl::PointCloud<T>);
+        typename pcl::PointCloud<T>::Ptr feature_points(new pcl::PointCloud<T>);
 
         // Main Loop
         int count = 0;
 
-        std::vector<mypair> curvatures;
+        std::vector<query_point> curvatures;
 
         for (int i = window_size; i < input_cloud.size() - window_size; i++)
         {
@@ -115,7 +169,7 @@ public:
 
             // from LOAM paper
             float smoothness = sum.norm() / (window_cloud->points[0].getVector3fMap().norm() * window_cloud->size());
-            mypair curv;
+            query_point curv;
             curv.first = smoothness;
             curv.second = i;
             curvatures.push_back(curv);
@@ -123,6 +177,8 @@ public:
             // count++;
         }
 
+
+        if(curvatures.size() > n_highest ) {
         std::sort(curvatures.begin(), curvatures.end(), comparator);
 
         std::ofstream file;
@@ -147,13 +203,14 @@ public:
 
         // pcl::copyPointCloud(*feature_points, features_cloud);
         features_cloud = *feature_points;
+        }
     }
 
 private:
     Features() {}
     ~Features() {}
 
-    static bool comparator(const mypair &l, const mypair &r)
+    static bool comparator(const query_point &l, const query_point &r)
     {
         return l.first < r.first;
     }

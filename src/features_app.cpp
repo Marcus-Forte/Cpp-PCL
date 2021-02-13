@@ -10,7 +10,7 @@
 
 using namespace std;
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloudT;
-pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer);
+pcl::visualization::PCLVisualizer::Ptr viewer;
 
 PointCloudT::Ptr cloud_input = pcl::make_shared<PointCloudT>();    //input
 PointCloudT::Ptr edge_features = pcl::make_shared<PointCloudT>();  //input
@@ -63,13 +63,13 @@ void KeyCallback(const pcl::visualization::KeyboardEvent &event)
 
 void printUsage()
 {
-    std::cout << "Usage : features [target.pcd]" << std::endl;
+    std::cout << "Usage : features [target.pcd] [partitions] [n_highest]" << std::endl;
 }
 
 int main(int argc, char **argv)
 {
 
-    if (argc < 2)
+    if (argc < 4)
     {
         printUsage();
         exit(-1);
@@ -90,10 +90,34 @@ int main(int argc, char **argv)
     pass_through.setNegative(true);
     pass_through.filter(*cloud_input);
 
-    Features::EdgeDetection<pcl::PointXYZ>(*cloud_input, *edge_features, 5, 4);
-    Features::ComputeSmoothness<pcl::PointXYZ>(*cloud_input, *plane_features, 10, 8);
+    viewer = pcl::make_shared<pcl::visualization::PCLVisualizer>("VIEWER");
 
+    // Cloud Partitioning
+    std::vector<PointCloudT> partitions;
+    int N_partitions = atoi(argv[2]);
+    int N_highest = atoi(argv[3]);
+    Features::PartitionCloud(*cloud_input, partitions, N_partitions);
+
+    // for(int i = 0;i < N_partitions;++i){
+    //     cout << "Partition: " << i << endl;
+    //     for(int j=0;j<partitions[i].size(); ++ j){
+    //         cout << "Pt: " << partitions[i].points[j] << endl;
+    //     }
+    // }
+
+    for (int i = 0; i < N_partitions; ++i)
+    {
+
+        PointCloudT edges;
+        PointCloudT planes;
+        Features::EdgeDetection<pcl::PointXYZ>(partitions[i], edges, 6, N_highest);
+        Features::ComputeSmoothness<pcl::PointXYZ>(partitions[i], planes, 6, N_highest);
+
+        *edge_features += edges;
+        *plane_features += planes;
     
+    }
+
     viewer->addPointCloud(cloud_input, "cloud");
     viewer->addPointCloud(edge_features, "edges");
     viewer->addPointCloud(plane_features, "planes");
