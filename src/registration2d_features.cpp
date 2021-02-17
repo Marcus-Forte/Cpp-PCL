@@ -6,7 +6,7 @@
 #include <pcl/registration/gicp.h>
 #include <pcl/registration/icp.h>
 #include <pcl/registration/transformation_estimation_2D.h>
-
+#include <pcl/registration/transformation_estimation_point_to_plane.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
@@ -25,9 +25,8 @@ class TransformationPointToLine : public pcl::registration::TransformationEstima
 
 public:
     using Matrix4 = Eigen::Matrix<Scalar, 4, 4>;
-
-    using Ptr = shared_ptr<TransformationPointToLine<PointSource, PointTarget, Scalar>>;
-    using ConstPtr = shared_ptr<const TransformationPointToLine<PointSource, PointTarget, Scalar>>;
+    using Ptr = pcl::shared_ptr<TransformationPointToLine<PointSource, PointTarget, Scalar>>;
+    using ConstPtr = pcl::shared_ptr<const TransformationPointToLine<PointSource, PointTarget, Scalar>>;
 
     // called by ICP
     void
@@ -37,7 +36,72 @@ public:
         const pcl::Correspondences &correspondences,
         Matrix4 &transformation_matrix) const override
     {
+        cout << "src size: " << cloud_src.size() << endl;
+        cout << "tgt size: " << cloud_tgt.size() << endl;
+
+        pcl::ConstCloudIterator<PointSource> source_it(cloud_src, correspondences, true);
+        pcl::ConstCloudIterator<PointSource> target_it(cloud_tgt, correspondences, false);
+
+        transformation_matrix.setIdentity();
+
+        for (int i = 0; i < correspondences.size(); ++i)
+        {
+            cout << "src: " << correspondences[i].index_query << "->" << correspondences[i].index_match << endl;
+        }
+
+        // Compute point to line
+
+        // Gauss Newton
+        Eigen::Vector3d x = Eigen::Vector3d::Zero();
+        
+
+        Eigen::Vector4f pt(1,1,0,0);
+        Eigen::Vector4f line0(0,0,0,0);
+        Eigen::Vector4f line1(-1,1,0,0);
+        double dist = pcl::sqrPointToLineDistance(pt,line0,line1);
+
+        cout << "dist: " << dist << endl;
+
+
+        for (int i = 0; i < 5; ++i)
+        {
+        }
+
+        // cout << "estimating 0" << endl;
     }
+
+    void
+    estimateRigidTransformation(
+        const pcl::PointCloud<PointSource> &cloud_src,
+        const std::vector<int> &indices_src,
+        const pcl::PointCloud<PointTarget> &cloud_tgt,
+        const std::vector<int> &indices_tgt,
+        Matrix4 &transformation_matrix) const
+    {
+        cout << "estimating 1" << endl;
+    }
+
+    void
+    estimateRigidTransformation(
+        const pcl::PointCloud<PointSource> &cloud_src,
+        const std::vector<int> &indices_src,
+        const pcl::PointCloud<PointTarget> &cloud_tgt,
+        Matrix4 &transformation_matrix) const
+    {
+        cout << "estimating 2" << endl;
+    }
+
+    void
+    estimateRigidTransformation(
+        const pcl::PointCloud<PointSource> &cloud_src,
+        const pcl::PointCloud<PointTarget> &cloud_tgt,
+        Matrix4 &transformation_matrix) const
+    {
+        cout << "estimating 3" << endl;
+    }
+
+    TransformationPointToLine(){};
+    virtual ~TransformationPointToLine(){};
 
 private:
 };
@@ -167,8 +231,11 @@ int main(int argc, char **argv)
     // icp.setInputTarget(cloud_target_features);
     icp.setInputTarget(cloud_target_raw);
 
+    TransformationPointToLine<pcl::PointXYZ, pcl::PointXYZ>::Ptr te_ptl(new TransformationPointToLine<pcl::PointXYZ, pcl::PointXYZ>);
     pcl::registration::TransformationEstimation2D<pcl::PointXYZ, pcl::PointXYZ>::Ptr te_2d(new pcl::registration::TransformationEstimation2D<pcl::PointXYZ, pcl::PointXYZ>);
-    icp.setTransformationEstimation(te_2d);
+    // icp.setTransformationEstimation(te_2d);
+    icp.setTransformationEstimation(te_ptl);
+
     icp.setTransformationEpsilon(1e-6);
     icp.setMaximumIterations(maxit);
     // icp.setCorr
