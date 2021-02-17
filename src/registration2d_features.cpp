@@ -233,13 +233,13 @@ int main(int argc, char **argv)
 
     TransformationPointToLine<pcl::PointXYZ, pcl::PointXYZ>::Ptr te_ptl(new TransformationPointToLine<pcl::PointXYZ, pcl::PointXYZ>);
     pcl::registration::TransformationEstimation2D<pcl::PointXYZ, pcl::PointXYZ>::Ptr te_2d(new pcl::registration::TransformationEstimation2D<pcl::PointXYZ, pcl::PointXYZ>);
-    // icp.setTransformationEstimation(te_2d);
-    icp.setTransformationEstimation(te_ptl);
+    icp.setTransformationEstimation(te_2d);
+    // icp.setTransformationEstimation(te_ptl);
 
     icp.setTransformationEpsilon(1e-6);
     icp.setMaximumIterations(maxit);
     // icp.setCorr
-    // icp.setMaxCorrespondenceDistance(0.2);
+    icp.setMaxCorrespondenceDistance(0.5);
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_aligned(new pcl::PointCloud<pcl::PointXYZ>);
     icp.align(*cloud_aligned_features);

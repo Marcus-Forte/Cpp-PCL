@@ -45,6 +45,21 @@ add_executable(features_registration src/registration2d_features.cpp)
 add_executable(features src/features_app.cpp)
 
 
+# test zone
+file(GLOB cpp_list RELATIVE ${CMAKE_SOURCE_DIR} "test_src/*.cpp")
+
+foreach(file_path ${cpp_list})
+	message(STATUS ${file_path})
+	string(REPLACE "test_src/" "" name_src ${file_path})
+	string(REPLACE ".cpp" "" name_final ${name_src})
+	message(STATUS ${name_final})
+	add_executable(${name_final} ${file_path})
+endforeach()
+
+
+
+
+
 # linkage
 target_link_libraries(volume Utils)
 target_link_libraries(volume_studies Utils)
