@@ -53,15 +53,13 @@ public:
 
         // Gauss Newton
         Eigen::Vector3d x = Eigen::Vector3d::Zero();
-        
 
-        Eigen::Vector4f pt(1,1,0,0);
-        Eigen::Vector4f line0(0,0,0,0);
-        Eigen::Vector4f line1(-1,1,0,0);
-        double dist = pcl::sqrPointToLineDistance(pt,line0,line1);
+        Eigen::Vector4f pt(1, 1, 0, 0);
+        Eigen::Vector4f line0(0, 0, 0, 0);
+        Eigen::Vector4f line1(-1, 1, 0, 0);
+        double dist = pcl::sqrPointToLineDistance(pt, line0, line1);
 
         cout << "dist: " << dist << endl;
-
 
         for (int i = 0; i < 5; ++i)
         {
@@ -196,9 +194,9 @@ int main(int argc, char **argv)
 
     // Partiticon clouds
     int N_Partitions = 4;
-    std::vector<PointCloudT> cloud_source_partitions;
-    Features::PartitionCloud(*cloud_source, cloud_source_partitions, N_Partitions);
-    std::cout << "partition OK.." << cloud_source_partitions.size() << std::endl;
+    std::vector<PointCloudT> partitions;
+    Features::PartitionCloud(*cloud_source, partitions, N_Partitions);
+    std::cout << "partition OK.." << partitions.size() << std::endl;
 
     // std::vector<PointCloudT> cloud_target_partitions;
     // Features::PartitionCloud(*cloud_target, cloud_target_partitions, N_Partitions);
@@ -210,38 +208,43 @@ int main(int argc, char **argv)
 
     PointCloudT::Ptr cloud_aligned_features(new PointCloudT);
 
-    int N = 7; // Neighboors
+    int N = 6; // Neighboors
 
     for (int i = 0; i < N_Partitions; ++i)
     {
 
-        Features::EdgeDetection<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_local_features, N, n_highest);
+        // cout << "Computing Edges.." << endl;
+        // Features::EdgeDetection<pcl::PointXYZ>(partitions[i], *cloud_source_local_features, N, n_highest);
 
         // // Add Edges
+        // *cloud_source_features += *cloud_source_local_features;
+
+    // fix!
+        // Features::ComputeSmoothness<pcl::PointXYZ>(partitions[i], *cloud_source_local_features, N, n_highest);
+
+
+        // Add planar patches 
         *cloud_source_features += *cloud_source_local_features;
 
-        Features::ComputeSmoothness<pcl::PointXYZ>(cloud_source_partitions[i], *cloud_source_local_features, N, n_highest);
 
-        // Add Smooth Points .. may vary
-        *cloud_source_features += *cloud_source_local_features;
     }
 
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     icp.setInputSource(cloud_source_features);
-    // icp.setInputTarget(cloud_target_features);
-    icp.setInputTarget(cloud_target_raw);
+
+    icp.setInputTarget(cloud_target);
 
     TransformationPointToLine<pcl::PointXYZ, pcl::PointXYZ>::Ptr te_ptl(new TransformationPointToLine<pcl::PointXYZ, pcl::PointXYZ>);
     pcl::registration::TransformationEstimation2D<pcl::PointXYZ, pcl::PointXYZ>::Ptr te_2d(new pcl::registration::TransformationEstimation2D<pcl::PointXYZ, pcl::PointXYZ>);
-    icp.setTransformationEstimation(te_2d);
+    // icp.setTransformationEstimation(te_2d);
     // icp.setTransformationEstimation(te_ptl);
-
-    icp.setTransformationEpsilon(1e-6);
+    icp.setTransformationEpsilon(1e-8);
     icp.setMaximumIterations(maxit);
     // icp.setCorr
     icp.setMaxCorrespondenceDistance(0.5);
+    // icp.registerVisualizationCallback();
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_aligned(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_aligned(new pcl::PointCloud<pcl::PointXYZ>);
     icp.align(*cloud_aligned_features);
     Eigen::Matrix4f transform = icp.getFinalTransformation();
 

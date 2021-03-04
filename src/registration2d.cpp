@@ -76,13 +76,18 @@ int main(int argc, char **argv)
     // Voxel
     float res = atof(argv[3]);
     int maxit = atoi(argv[4]);
+
+    if( res != 0.0) {
     pcl::VoxelGrid<pcl::PointXYZ> voxel;
     voxel.setLeafSize(res, res, res);
     voxel.setInputCloud(cloud_target_);
     voxel.filter(*cloud_target);
-
     voxel.setInputCloud(cloud_source_);
     voxel.filter(*cloud_source);
+    } else {
+        *cloud_target = *cloud_target_;
+        *cloud_source = *cloud_source_;
+    }
 
     pcl::visualization::PCLVisualizer viewer("Viewer");
     

@@ -431,14 +431,14 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
       cloudCurvature[i] = tmp / (2 * kNumCurvSize * dis + 1e-3);
     }
     cloudSortInd[i] = i;
-    cloudNeighborPicked[i] = 0;
+    cloudNeighborPicked[i] = 0; //  LIVRE
     cloudLabel[i] = 0;
 
     /// Mark un-reliable points
     constexpr float kMaxFeatureDis = 1e4;
     if (fabs(dis) > kMaxFeatureDis || fabs(dis) < 1e-4 || !std::isfinite(dis)) {
       cloudLabel[i] = 99;
-      cloudNeighborPicked[i] = 1;
+      cloudNeighborPicked[i] = 1; // REMOVE DISTANTES ?
     }
   }
 
@@ -457,7 +457,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
                 laserCloud->points[i].z * laserCloud->points[i].z;
 
     if (diff > 0.00015 * dis && diff2 > 0.00015 * dis) {
-      cloudNeighborPicked[i] = 1;
+      cloudNeighborPicked[i] = 1; // REMOVE OCLUSOES ?
     }
   }
 
@@ -509,11 +509,11 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
       float SumCurRegion = 0.0;
       float MaxCurRegion = cloudCurvature[cloudSortInd[ep]];  //the largest curvature in sp ~ ep
       for (int k = ep - 1; k >= sp; k--) {
-        SumCurRegion += cloudCurvature[cloudSortInd[k]];
+        SumCurRegion += cloudCurvature[cloudSortInd[k]]; // SOMA TOTAL DA REGIAO.. PQ ?
       }
 
       if (MaxCurRegion > 3 * SumCurRegion)
-        cloudNeighborPicked[cloudSortInd[ep]] = 1;
+        cloudNeighborPicked[cloudSortInd[ep]] = 1; // REMOVE PLANAR AO LASER ?
 
       t_q_sort += t_tmp.toc();
 
@@ -525,7 +525,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
       }
 
       int largestPickedNum = 0;
-      for (int k = ep; k >= sp; k--) {
+      for (int k = ep; k >= sp; k--) { // EP --> SP BORDAS PRIMEIRO
         int ind = cloudSortInd[k];
 
         if (cloudNeighborPicked[ind] != 0) continue;
@@ -533,7 +533,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
         if (cloudCurvature[ind] > kThresholdSharp) {
           largestPickedNum++;
           if (largestPickedNum <= kNumEdge) {
-            cloudLabel[ind] = 2;
+            cloudLabel[ind] = 2; // STRONG EDGE
             cornerPointsSharp.push_back(laserCloud->points[ind]);
             cornerPointsLessSharp.push_back(laserCloud->points[ind]);
             // ROS_INFO("pick sharp at sort_id [%d], primary id[%d]", k, ind);
@@ -542,13 +542,13 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
             //   printf("%d-[%f, %f, %f]\n", ind, pt.x, pt.y, pt.z);
             // }
           } else if (largestPickedNum <= 20) {
-            cloudLabel[ind] = 1;
+            cloudLabel[ind] = 1; // WEAK EDGE
             cornerPointsLessSharp.push_back(laserCloud->points[ind]);
           } else {
             break;
           }
 
-          cloudNeighborPicked[ind] = 1;
+          cloudNeighborPicked[ind] = 1; // REMOVE QUEM JA FOI COLOCADO ?
 
           for (int l = 1; l <= kNumEdgeNeighbor; l++) {
             float diffX = laserCloud->points[ind + l].x -
@@ -558,10 +558,10 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
             float diffZ = laserCloud->points[ind + l].z -
                           laserCloud->points[ind + l - 1].z;
             if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.02) {
-              break;
+              break;// DISTANCIAS ALTAS, PODEMOS QUEBRAR O LOOP
             }
 
-            cloudNeighborPicked[ind + l] = 1;
+            cloudNeighborPicked[ind + l] = 1; // REMOVE VIZINHOS PROXIMOS EM DISTANCIA PRA LA...
           }
           for (int l = -1; l >= -kNumEdgeNeighbor; l--) {
             float diffX = laserCloud->points[ind + l].x -
@@ -571,16 +571,16 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
             float diffZ = laserCloud->points[ind + l].z -
                           laserCloud->points[ind + l + 1].z;
             if (diffX * diffX + diffY * diffY + diffZ * diffZ > 0.02) {
-              break;
+              break; // DISTANCIAS ALTAS, PODEMOS QUEBRAR O LOOP
             }
-
-            cloudNeighborPicked[ind + l] = 1;
-          }
+ 
+            cloudNeighborPicked[ind + l] = 1; // ... E PRA CA
+          } 
         }
       }
 
       int smallestPickedNum = 0;
-      for (int k = sp; k <= ep; k++) {
+      for (int k = sp; k <= ep; k++) { // SP --> EP DEPOIS PLANARES
         int ind = cloudSortInd[k];
 
         if (cloudNeighborPicked[ind] != 0) continue;
@@ -606,7 +606,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
               break;
             }
 
-            cloudNeighborPicked[ind + l] = 1;
+            cloudNeighborPicked[ind + l] = 1; // REMOVE VIZINHOS PROXIMOS EM DISTANCIA PRA LA...
           }
           for (int l = -1; l >= -kNumFlatNeighbor; l--) {
             float diffX = laserCloud->points[ind + l].x -
@@ -619,20 +619,20 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg) {
               break;
             }
 
-            cloudNeighborPicked[ind + l] = 1;
+            cloudNeighborPicked[ind + l] = 1; // .. E PRA CA
           }
         }
       }
 
       for (int k = sp; k <= ep; k++) {
         if (cloudLabel[k] <= 0 && cloudCurvature[k] < kThresholdLessflat) {
-          surfPointsLessFlatScan->push_back(laserCloud->points[k]);
+          surfPointsLessFlatScan->push_back(laserCloud->points[k]); // ADICIONA PONTOS QUE ESTAO NA FAIXA PLANAR.. COERENTE COM ARTIGO
         }
       }
     }
 
     surfPointsLessFlat += surfPointsFlat;
-    cornerPointsLessSharp += cornerPointsSharp;
+    cornerPointsLessSharp += cornerPointsSharp; // NAO ENTENDO...
     /// Whether downsample less-flat points
     if (false) {
       pcl::PointCloud<PointType> surfPointsLessFlatScanDS;

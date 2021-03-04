@@ -10,13 +10,18 @@
 #include <thread>
 #include <mutex>
 #include <pcl/common/transforms.h>
+#include <pcl/filters/extract_indices.h>
+
+#include <pcl/filters/voxel_grid.h>
 
 #include "PCUtils.h"
 #include <vector>
 
 using PointCloudT = pcl::PointCloud<pcl::PointXYZRGB>;
+std::vector<PointCloudT::Ptr> cloud_vector;
 
-bool recopy = false;
+bool animate;
+pcl::visualization::Camera c0, c1;
 
 static bool compare_z(pcl::PointXYZRGB &a, pcl::PointXYZRGB &b)
 {
@@ -58,9 +63,9 @@ void DunaPaint(const PointCloudT &cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr 
 	int aqua_b = 153;
 
 	//blue
-	int saph_r = 0;	  //SAPHIRE
-	int saph_g = 102; 
-	int saph_b = 153; 
+	int saph_r = 0; //SAPHIRE
+	int saph_g = 102;
+	int saph_b = 153;
 
 	int hon_r = 255; // RUIM
 	int hon_g = 180;
@@ -118,45 +123,59 @@ std::mutex g_mutex;
 // TODO Implementar Pause, resume ..
 // TODO cores !
 // TODO velocidade flexivel
-void slow_copy(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr tgt, float delay)
+void areaPickCallback(const pcl::visualization::AreaPickingEvent &event, void *cookie)
 {
+	pcl::IndicesPtr selected_pts(new pcl::Indices);
+	event.getPointsIndices(*selected_pts);
+	pcl::ExtractIndices<pcl::PointXYZRGB> extractor;
+	extractor.setIndices(selected_pts);
+	extractor.setInputCloud(cloud_vector[0]);
+	extractor.setNegative(true);
+	extractor.filter(*cloud_vector[0]);
 
-	std::lock_guard<std::mutex> guard(g_mutex);
-	int size = src->size();
+	// Repaint
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr duna_color_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+	DunaPaint(*cloud_vector[0], duna_color_cloud);
 
-	tgt->clear();
-	tgt->resize(size);
+	pcl::visualization::PCLVisualizer *viewer_ptr = (pcl::visualization::PCLVisualizer *)cookie;
 
-	std::cout << "animating" << std::endl;
-	for (int i = 0; i < size; ++i)
-	{
-		tgt->points[i] = src->points[i];
-		std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
-	}
-
-	std::cout << "finished" << std::endl;
-	recopy = false;
+	viewer_ptr->updatePointCloud(duna_color_cloud, "cloud0");
 }
 
-void keyCallback(const pcl::visualization::KeyboardEvent &event)
+void keyCallback(const pcl::visualization::KeyboardEvent &event, void *cookie)
 {
 	// std::cout << "key pressed " << std::endl;
-	char key = event.getKeyCode();
+	if (event.keyDown() == false)
+		return;
 
-	if (key == 'l')
+	pcl::visualization::PCLVisualizer *viewer_ptr = (pcl::visualization::PCLVisualizer *)cookie;
+	char key = event.getKeyCode();
+	static bool c0_set = false;
+	static bool c1_set = false;
+
+	if (key == 'b')
+	{
+		viewer_ptr->getCameraParameters(c0);
+		std::cout << "Camera 0 Set!" << std::endl;
+		c0_set = true;
+	}
+	else if (key == 'n')
+	{
+		viewer_ptr->getCameraParameters(c1);
+		std::cout << "Camera 1 Set!" << std::endl;
+		c1_set = true;
+	}
+	else if (key == 'm')
 	{
 
-		// std::cout << "l" << std::endl;
-
-		if (g_mutex.try_lock() == false)
+		if ((c0_set && c1_set) == false)
 		{
-			//std::cout << "locked" << std::endl;
+			std::cout << "No camera path" << std::endl;
+			return;
 		}
 		else
 		{
-			// std::cout << "UNlocked" << std::endl;
-			g_mutex.unlock();
-			recopy = true;
+			animate = true; //triggers animation
 		}
 	}
 }
@@ -241,21 +260,29 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
+	int n_clouds = argc - 1;
+
+	// Protection
+	if (n_clouds > 1)
+	{
+		PCL_ERROR("Only 1 point cloud argument supported!\n");
+		exit(-1);
+	}
+
 	pcl::visualization::PCLVisualizer viewer("My Viewer");
 	int v1, v2;
 	viewer.createViewPort(0, 0, 1, 1, v1);
 	// viewer.setCameraPosition(-6.61, -2.13, 10.33, 1.0, 1, 1);
 	// viewer.setBackgroundColor(0, 0, 0, v1);
-	viewer.addCoordinateSystem(1, "ref", v1);
+	// viewer.addCoordinateSystem(1, "ref", v1);
 	viewer.registerPointPickingCallback(pp_callback);
-	viewer.registerKeyboardCallback(keyCallback);
+	viewer.registerKeyboardCallback(keyCallback, &viewer);
+	viewer.registerAreaPickingCallback(areaPickCallback, &viewer);
 	// make_grid(viewer, 1);
-
-	int n_clouds = argc - 1;
 
 	std::cout << "N clouds = " << n_clouds << std::endl;
 
-	std::vector<PointCloudT::Ptr> cloud_vector(n_clouds);
+	cloud_vector.resize(n_clouds);
 
 	for (int i = 0; i < n_clouds; i++)
 	{
@@ -263,6 +290,13 @@ int main(int argc, char **argv)
 		cloud_vector[i] = pcl::make_shared<PointCloudT>();
 
 		PCUtils::readFile(argv[i + 1], *cloud_vector[i]);
+
+		PCL_INFO("Applying Voxel..");
+		pcl::VoxelGrid<pcl::PointXYZRGB> voxel;
+		voxel.setInputCloud(cloud_vector[i]);
+		voxel.setLeafSize(0.07, 0.07, 0.07);
+		voxel.filter(*cloud_vector[i]);
+
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr duna_color_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
 		DunaPaint(*cloud_vector[i], duna_color_cloud);
@@ -270,19 +304,56 @@ int main(int argc, char **argv)
 		std::string cloudname = "cloud" + std::to_string(i);
 
 		viewer.addPointCloud(duna_color_cloud, cloudname);
-		
-		// viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_LUT,pcl::visualization::PCL_VISUALIZER_LUT_BLUE2RED,cloudname);
-
-		// viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_LUT_RANGE,0,1,cloudname);
-		// viewer.setLookUpTableID(cloudname);
 	}
 
 	std::cout << "Done" << std::endl;
 
 	while (!viewer.wasStopped())
 	{
-		viewer.spin();
+
+		if (animate)
+		{
+
+			pcl::visualization::Camera ci = c0;
+
+			const int alpha = 1000;
+
+			float increment_x = (c1.pos[0] - c0.pos[0]) / (float)alpha;
+			float increment_y = (c1.pos[1] - c0.pos[1]) / (float)alpha;
+			float increment_z = (c1.pos[2] - c0.pos[2]) / (float)alpha;
+
+			for (int i = 0; i < alpha; ++i)
+			{
+
+				ci.pos[0] += increment_x;
+				ci.pos[1] += increment_y;
+				ci.pos[2] += increment_z;
+
+				viewer.setCameraParameters(ci);
+				viewer.spinOnce();
+				usleep(1000);
+			}
+
+			for (int i = 0; i < alpha; ++i)
+			{
+
+				ci.pos[0] -= increment_x;
+				ci.pos[1] -= increment_y;
+				ci.pos[2] -= increment_z;
+
+				viewer.setCameraParameters(ci);
+				viewer.spinOnce();
+				usleep(1000);
+			}
+
+			animate = false;
+		}
+
+	viewer.spinOnce();
+	usleep(1000);
+
 	}
+	
 
 	return 0;
 }

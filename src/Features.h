@@ -12,7 +12,8 @@ using namespace std;
 class Features
 {
 
-    typedef std::pair<float, int> query_point; //curvature + index
+    // typedef std::pair<float, int> query_point; //curvature + index
+    using query_point = std::pair<float,int>;
 
 public:
     template <class T>
@@ -52,13 +53,103 @@ public:
     }
 
     //
+    // template <typename T>
+    // static void EdgeDetection(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &features_cloud, int window_size, int n_highest)
+    // {
+    //     typename pcl::PointCloud<T>::Ptr window_cloud(new pcl::PointCloud<T>);
+    //     typename pcl::PointCloud<T>::Ptr feature_points(new pcl::PointCloud<T>);
+
+    //     std::vector<query_point> edge_list;
+
+    //     window_cloud->points.resize(window_size + 1); // Query point + window_size
+
+    //     // Main Loop
+    //     for (int i = window_size; i < input_cloud.size() - window_size; i++)
+    //     {
+    //         // WE must preserve centrality over query point i
+    //         window_cloud->points[0] = input_cloud.points[i];
+    //         int count = 1;
+    //         for (int j = 1; j <= window_size / 2; ++j)
+    //         { // Error here
+    //             window_cloud->points[count] = input_cloud.points[i + j];
+    //             count++;
+    //             window_cloud->points[count] = input_cloud.points[i - j];
+    //             count++;
+    //         }
+
+    //         // cout << "Window: " << i << endl;
+    //         // for (auto it : window_cloud->points)
+    //         // {
+    //         //     cout << it << endl;
+    //         // }
+
+    //         // cout << endl;
+
+    //         // [i] , [i+j] , [i + 2j] , [i + 2j] , [i - 2j], ...
+
+    //         T centroid;
+    //         pcl::computeCentroid(*window_cloud, centroid);
+
+    //         float resolution = 9999;
+    //         float dist;
+    //         for (auto it = window_cloud->begin() + 1; it < window_cloud->end(); ++it)
+    //         {
+    //             // cout << *it << endl;
+    //             dist = pcl::euclideanDistance(window_cloud->points[0], (*it));
+    //             if (dist < resolution)
+    //                 resolution = dist;
+    //         }
+
+    //         float isEdge = (centroid.getVector3fMap() - window_cloud->points[0].getVector3fMap()).norm();
+    //         float lambda = 4;
+
+    //         if (isEdge > lambda * resolution)
+    //         {
+    //             // cout << "Edge!" << endl;
+    //             query_point p;
+    //             p.first = isEdge;
+    //             p.second = i;
+    //             edge_list.push_back(p);
+    //             // feature_points->push_back(window_cloud->points[0]);
+    //             // feature_points->push_back(*(window_cloud->points.end() - 4)); //
+    //             // i += 2 * window_size;
+    //         }
+    //     }
+    //     // Sort highest edges
+
+    //     if(edge_list.size() > n_highest){
+    //     std::sort(edge_list.begin(), edge_list.end(), comparator); // low to high
+
+    //     int index;
+    //     for (int i = 0; i < n_highest; ++i)
+    //     {
+    //         index = (edge_list.end() - 1 - i)->second;
+    //         feature_points->push_back(input_cloud.points[index]);
+    //     }
+
+    //     // pcl::copyPointCloud(*feature_points, features_cloud);
+    //     features_cloud = *feature_points;
+    //     // cout << "Features -> " << features_cloud.size() << endl;
+    //     }
+    // }
+
+    // Must preallocate.. Taken from LOAM paper
+    // TODO improve efficiency , point access / copy
     template <typename T>
-    static void EdgeDetection(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &features_cloud, int window_size, int n_highest)
+    static void ComputeSmoothness(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &edges, pcl::PointCloud<T>& planar, int window_size, int max_edges, int max_planar)
     {
         typename pcl::PointCloud<T>::Ptr window_cloud(new pcl::PointCloud<T>);
-        typename pcl::PointCloud<T>::Ptr feature_points(new pcl::PointCloud<T>);
 
-        std::vector<query_point> edge_list;
+        edges.clear();
+        planar.clear();
+
+        const float max_planar_smoothness = 1e-4;
+        const float min_edge_smoothness = 0.1;
+
+        // Main Loop
+        int count = 0;
+
+        std::vector<query_point> curvatures;
 
         window_cloud->points.resize(window_size + 1); // Query point + window_size
 
@@ -76,85 +167,6 @@ public:
                 count++;
             }
 
-            // cout << "Window: " << i << endl;
-            // for (auto it : window_cloud->points)
-            // {
-            //     cout << it << endl;
-            // }
-
-            // cout << endl;
-
-            // [i] , [i+j] , [i + 2j] , [i + 2j] , [i - 2j], ...
-
-            T centroid;
-            pcl::computeCentroid(*window_cloud, centroid);
-
-            float resolution = 9999;
-            float dist;
-            for (auto it = window_cloud->begin() + 1; it < window_cloud->end(); ++it)
-            {
-                // cout << *it << endl;
-                dist = pcl::euclideanDistance(window_cloud->points[0], (*it));
-                if (dist < resolution)
-                    resolution = dist;
-            }
-
-            float isEdge = (centroid.getVector3fMap() - window_cloud->points[0].getVector3fMap()).norm();
-            float lambda = 6;
-
-            if (isEdge > lambda * resolution)
-            {
-                // cout << "Edge!" << endl;
-                query_point p;
-                p.first = isEdge;
-                p.second = i;
-                edge_list.push_back(p);
-                // feature_points->push_back(window_cloud->points[0]);
-                // feature_points->push_back(*(window_cloud->points.end() - 4)); //
-                // i += 2 * window_size;
-            }
-        }
-        // Sort highest edges
-
-        if(edge_list.size() > n_highest){
-        std::sort(edge_list.begin(), edge_list.end(), comparator); // low to high
-
-        int index;
-        for (int i = 0; i < n_highest; ++i)
-        {
-            index = (edge_list.end() - 1 - i)->second;
-            feature_points->push_back(input_cloud.points[index]);
-        }
-
-        // pcl::copyPointCloud(*feature_points, features_cloud);
-        features_cloud = *feature_points;
-        // cout << "Features -> " << features_cloud.size() << endl;
-        }
-    }
-
-    // Must preallocate
-    template <typename T>
-    static void ComputeSmoothness(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &features_cloud, int window_size, int n_highest)
-    {
-        typename pcl::PointCloud<T>::Ptr window_cloud(new pcl::PointCloud<T>);
-        typename pcl::PointCloud<T>::Ptr feature_points(new pcl::PointCloud<T>);
-
-        // Main Loop
-        int count = 0;
-
-        std::vector<query_point> curvatures;
-
-        for (int i = window_size; i < input_cloud.size() - window_size; i++)
-        {
-
-            window_cloud->clear();
-            window_cloud->push_back(input_cloud.points[i]);
-            for (int j = 1; j < window_size; ++j)
-            {
-                window_cloud->push_back(input_cloud.points[i + j]);
-                window_cloud->push_back(input_cloud.points[i - j]);
-            }
-
             T centroid;
             pcl::computeCentroid(*window_cloud, centroid);
 
@@ -167,7 +179,6 @@ public:
                 sum += (window_cloud->points[0].getVector3fMap() - window_cloud->points[k].getVector3fMap());
             }
 
-            // from LOAM paper
             float smoothness = sum.norm() / (window_cloud->points[0].getVector3fMap().norm() * window_cloud->size());
             query_point curv;
             curv.first = smoothness;
@@ -177,39 +188,76 @@ public:
             // count++;
         }
 
-
-        if(curvatures.size() > n_highest ) {
+        // TODO Filter : occulsion, parallel to laser, avoid surround points
         std::sort(curvatures.begin(), curvatures.end(), comparator);
+
+
+        // Remove Neighboors
+        std::vector<int> markNeighboors (curvatures.size());
+        // std::vector<int> index_window ( window_size);
+        for(int i=0; i < curvatures.size() - window_size; i += window_size){
+
+            for(int j = 0; j < window_size; ++ j){
+                if ( abs(curvatures[i].second - curvatures[i+1+j].second) < window_size )
+                    markNeighboors[i+j+1] = 1;
+            }
+
+        }
+
+        std::vector<query_point> curvatures_removed_n;
+
+        for(int i = 0; i < curvatures.size(); ++ i){
+            if ( markNeighboors[i] == 0 ){
+                curvatures_removed_n.push_back(curvatures[i]);
+            }
+        }
+
+        // Filter thresholds;
+
+
+        // Filter Surrounds
+
+
+
+        // Check Occlusion
+
+        // Filter Parallellism
+
+    
+        
 
         std::ofstream file;
         file.open("log.txt");
+        count = 0;
         for (auto it : curvatures)
         {
             // std::cout << "c = " << it.first << "," << "i = " << it.second << std::endl;
             file << "c = " << it.first << ","
-                 << "i = " << it.second << std::endl;
+                 << "i = " << it.second <<  ","
+                 << markNeighboors[count++] << endl;
         }
         file.close();
 
         int index;
         int index_low;
-        for (int j = 0; j < n_highest; ++j)
+        for (int j = 0; j < max_edges; ++j)
         {                                             // pick top ten
             index = (curvatures.begin() + j)->second; // index
             index_low = (curvatures.end() - 1 - j)->second;
-            feature_points->points.push_back(input_cloud.points[index]); // Smooth
-            // feature_points->points.push_back(input_cloud.points[index_low]); // Not Smooth - requires further filtering
+            planar.points.push_back(input_cloud.points[index]); // Smooth
+            edges.points.push_back(input_cloud.points[index_low]); // Not Smooth - requires further filtering
         }
 
         // pcl::copyPointCloud(*feature_points, features_cloud);
-        features_cloud = *feature_points;
-        }
+        // features_cloud = *feature_points;
+        
     }
 
 private:
     Features() {}
     ~Features() {}
 
+    // compare smooth
     static bool comparator(const query_point &l, const query_point &r)
     {
         return l.first < r.first;
