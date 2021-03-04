@@ -11,7 +11,7 @@
 #include <mutex>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/extract_indices.h>
-
+#include <pcl/console/parse.h>
 #include <pcl/filters/voxel_grid.h>
 
 #include "PCUtils.h"
@@ -251,23 +251,40 @@ void pp_callback(const pcl::visualization::PointPickingEvent &event)
 
 typedef pcl::PointCloud<pcl::PointXYZ> CloudType;
 
+void PrintUsage()
+{
+	std::cerr << "Usage : vizualise -r [voxel rex] -f cloud.pcd/.txt ..." << std::endl;
+	
+}
+
 int main(int argc, char **argv)
 {
 
 	if (argc < 2)
 	{
-		std::cerr << "Usage : vizualise cloud.pcd/.txt ..." << std::endl;
+		PrintUsage();
+		exit(-1);
+	}
+	int n_clouds = 1;
+	int index;
+	index = pcl::console::find_argument(argc, argv, "-f");
+	if(index == -1){
+		PrintUsage();
 		exit(-1);
 	}
 
-	int n_clouds = argc - 1;
+	if (argv[index+1] == nullptr){
+		PrintUsage();
+		exit(-1);
+	}
+	
 
-	// Protection
-	if (n_clouds > 1)
+	float voxel_rex = 0.01;
+	if (pcl::console::find_switch(argc, argv, "-r") == true)
 	{
-		PCL_ERROR("Only 1 point cloud argument supported!\n");
-		exit(-1);
+		pcl::console::parse_argument(argc, argv, "-r", voxel_rex);
 	}
+
 
 	pcl::visualization::PCLVisualizer viewer("My Viewer");
 	int v1, v2;
@@ -280,6 +297,8 @@ int main(int argc, char **argv)
 	viewer.registerAreaPickingCallback(areaPickCallback, &viewer);
 	// make_grid(viewer, 1);
 
+	
+
 	std::cout << "N clouds = " << n_clouds << std::endl;
 
 	cloud_vector.resize(n_clouds);
@@ -289,12 +308,12 @@ int main(int argc, char **argv)
 		std::cout << "Reading file .. " << i << std::endl;
 		cloud_vector[i] = pcl::make_shared<PointCloudT>();
 
-		PCUtils::readFile(argv[i + 1], *cloud_vector[i]);
+		PCUtils::readFile(argv[index + 1], *cloud_vector[i]); // no check done
 
-		PCL_INFO("Applying Voxel..");
+		PCL_INFO("Applying Voxel. Res = %f\n",voxel_rex);
 		pcl::VoxelGrid<pcl::PointXYZRGB> voxel;
 		voxel.setInputCloud(cloud_vector[i]);
-		voxel.setLeafSize(0.07, 0.07, 0.07);
+		voxel.setLeafSize(voxel_rex, voxel_rex, voxel_rex);
 		voxel.filter(*cloud_vector[i]);
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr duna_color_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -349,11 +368,9 @@ int main(int argc, char **argv)
 			animate = false;
 		}
 
-	viewer.spinOnce();
-	usleep(1000);
-
+		viewer.spinOnce();
+		usleep(1000);
 	}
-	
 
 	return 0;
 }
