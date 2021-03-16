@@ -310,11 +310,13 @@ int main(int argc, char **argv)
 
 		PCUtils::readFile(argv[index + 1], *cloud_vector[i]); // no check done
 
+		if(voxel_rex > 0){
 		PCL_INFO("Applying Voxel. Res = %f\n",voxel_rex);
 		pcl::VoxelGrid<pcl::PointXYZRGB> voxel;
 		voxel.setInputCloud(cloud_vector[i]);
 		voxel.setLeafSize(voxel_rex, voxel_rex, voxel_rex);
 		voxel.filter(*cloud_vector[i]);
+		}
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr duna_color_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
