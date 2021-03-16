@@ -254,13 +254,13 @@ typedef pcl::PointCloud<pcl::PointXYZ> CloudType;
 int main(int argc, char **argv)
 {
 
-	if (argc < 2)
+	if (argc < 3)
 	{
-		std::cerr << "Usage : vizualise cloud.pcd/.txt ..." << std::endl;
+		std::cerr << "Usage : vizualise cloud.pcd/.txt [voxel res]..." << std::endl;
 		exit(-1);
 	}
 
-	int n_clouds = argc - 1;
+	int n_clouds = argc - 2;
 
 	// Protection
 	if (n_clouds > 1)
@@ -294,7 +294,8 @@ int main(int argc, char **argv)
 		PCL_INFO("Applying Voxel..");
 		pcl::VoxelGrid<pcl::PointXYZRGB> voxel;
 		voxel.setInputCloud(cloud_vector[i]);
-		voxel.setLeafSize(0.07, 0.07, 0.07);
+		float leafsize = atof(argv[2]);
+		voxel.setLeafSize(leafsize, leafsize, leafsize);
 		voxel.filter(*cloud_vector[i]);
 
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr duna_color_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);

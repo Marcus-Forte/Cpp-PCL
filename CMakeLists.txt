@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-project(MyPCL)
+project(marcusPCL)
 
 # My Arch pcl-10 folder
 # set (CMAKE_PREFIX_PATH /home/marcus/PCL/pcl-pcl-1.10.1/build/install)
@@ -11,6 +11,7 @@ set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin) #make binary folder
 find_package(PCL 1.7 REQUIRED)
 find_package(OpenMP)
+
 
 message(STATUS "PCL VERSION -> " ${PCL_VERSION})
 
@@ -46,6 +47,7 @@ add_executable(features_registration src/registration2d_features.cpp)
 add_executable(features src/features_app.cpp)
 
 
+
 # test zone
 file(GLOB cpp_list RELATIVE ${CMAKE_SOURCE_DIR} "test_src/*.cpp")
 
@@ -67,7 +69,7 @@ target_link_libraries(volume_studies Utils)
 target_link_libraries(geocrop Utils)
 target_link_libraries(visualize Utils)
  #target_link_libraries(features_registration Utils) #header only
-
+ 
 
 # converter
 add_executable(extconverter src/extconverter.cpp)
@@ -77,7 +79,16 @@ add_executable(extconverter src/extconverter.cpp)
 add_executable(pcl_transform_point_cloud src/pcl_transform_point_cloud.cpp)
 
 
+# this is independent of PCL GPU support
 
+find_package(CUDA)
+if(${CUDA_FOUND})
+	message(STATUS "CUDA OK!")
+	enable_language(CUDA)
+	add_executable(gputransform cuda_src/transform_test.cpp cuda_src/transform_kernel.cu)
+	target_include_directories(gputransform PUBLIC ${CUDA_INCLUDE_DIRS})
+	target_link_libraries(gputransform ${CUDA_LIBRARIES})
 
+endif()
 
 
