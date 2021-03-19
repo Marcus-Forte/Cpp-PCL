@@ -181,136 +181,6 @@ void PCUtils::fillCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl
     }
 }
 
-// Ideia -> gerar uma malha 2D de resolução 'res'; pra cada celular da malha, pegar os ponhos de maior altura e calcular o volume do paralelepipedo
-float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud_in, float res)
-{
-
-    pcl::PointXYZ min, max;
-    pcl::getMinMax3D(*cloud_in, min, max);
-    std::cout << min << max << std::endl;
-    int size_x = int((max.x + res - min.x) / res);
-    int size_y = int((max.y + res - min.y) / res);
-    Eigen::MatrixXf Cells;
-
-    Cells.resize(size_x, size_y);
-
-    Cells = Eigen::MatrixXf::Zero(size_x, size_y);
-
-    // std::cout << Cells << std::endl;
-    std::cout << "size = "
-              << "(" << size_x << "," << size_y << ")" << std::endl;
-
-    pcl::IndicesPtr pointIdxVec = pcl::make_shared<pcl::Indices>();
-
-    pcl::ExtractIndices<pcl::PointXYZ> extractor;
-    extractor.setInputCloud(cloud_in);
-    extractor.setIndices(pointIdxVec);
-
-    pcl::octree::OctreePointCloudSearch<pcl::PointXYZ> octree(res);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr box_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-    octree.setInputCloud(cloud_in);
-
-    std::cout << "cloud size : " << cloud_in->size() << std::endl;
-    octree.addPointsFromInputCloud();
-
-    pcl::PointXYZ box_max(min.x + res, min.y + res, max.z);
-    pcl::PointXYZ box_min = min;
-    box_max.z = max.z;
-
-    // pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("janela"));
-    // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green(cloud_in, 0, 255, 0);
-
-    // viewer->addPointCloud(cloud_in, green, "in");
-    // viewer->addCoordinateSystem(1, "ref");
-
-    int i = 0;
-    int j = 0;
-
-    pcl::PointXYZ centroid;
-
-    pcl::PointXYZ _min, _max;
-    // Pode ser multithread
-    std::cout << omp_get_max_threads() << std::endl;
-
-    double ground = min.z;
-
-    // #pragma omp parallel num_threads(2) shared(pointIdxVec,Cells)
-    {
-        while (box_max.y < max.y + res)
-        {
-
-            j = 0;
-
-            while (box_max.x < max.x + res)
-            {
-
-                octree.boxSearch(box_min.getVector3fMap(), box_max.getVector3fMap(), *pointIdxVec);
-                extractor.filter(*box_cloud);
-
-                if (box_cloud->size())
-                {
-                    pcl::getMinMax3D(*box_cloud, _min, _max);
-                    pcl::computeCentroid(*box_cloud, centroid);
-
-                    // std::cout << "cloud extracted size = " <<cloud_out->size() << std::endl;
-                    // std::cout << "(" << i << "," << j << ")" << std::endl;
-                    // std::cout << _min << _max << std::endl;
-                    // std::cout << centroid << std::endl;
-
-                    // Maximum Height
-                    Cells(j, i) = _max.z - ground; // GROUND
-
-                    // Centroid
-                    // Cells(j, i) = centroid.z - ground;
-
-                    // FLOOR
-                }
-                else
-                {
-                    Cells(j, i) = 0; // Interpolar aqui. Marcar células p/ interpolar. (média dos adjacentes termos )
-                }
-
-                // Debug Animation
-                // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(box_cloud,255,0,0);
-                // viewer->addPointCloud(box_cloud,red,"extracted");
-                // // viewer->updatePointCloud(cloud_out,red,"extracted");
-                // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "extracted");
-                // viewer->spinOnce();
-                // std::this_thread::sleep_for(std::chrono::milliseconds(20));
-                // viewer->removePointCloud("extracted");
-
-                box_max.x += res;
-                box_min.x += res;
-
-                j++;
-            }
-
-            box_min.y += res;
-            box_max.y += res;
-
-            box_max.x = min.x + res;
-            box_min.x = min.x;
-
-            i++;
-        }
-    }
-
-    // Processar interpoçao aqui
-
-    Eigen::MatrixXf Interpolated;
-
-    std::cout << "sum = " << Cells.sum() << std::endl;
-
-    // Interpolate(Cells,Interpolated);
-
-    // std::cout << Cells << std::endl << std::endl;
-    // std::cout << Interpolated << std::endl;
-    // std::cout << Interpolated(0) << "," << Interpolated(1) << std::endl;
-
-    return Cells.sum() * res * res;
-}
-
 
 
 // typedef std::pair<float,int> mypair; //curvature + index
@@ -320,7 +190,7 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
 // }
 
 // // Must preallocate
-// template <class T> 
+// template <class T>
 // void PCUtils::PlaneDetection(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &features_cloud, int N, int N_planar)
 // {
 //     pcl::PointCloud<pcl::PointXYZ>::Ptr window_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -329,10 +199,8 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
 //     // pcl::copyPointCloud(input_cloud, *input_buffer);
 //     // Main Loop
 //     int count = 0;
-    
 
 //     std::vector<mypair> curvatures;
-
 
 //     for (int i = N; i < input_cloud.size() - N; i++)
 //     {
@@ -351,8 +219,6 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
 //         // less means more smooth
 //         // float smoothness = (centroid.getVector3fMap() - window_cloud->points[0].getVector3fMap()).norm();
 
-
-        
 //         Eigen::Vector3f sum = Eigen::Vector3f::Zero();
 //         for(int k=1;k<window_cloud->size();++k){
 //             sum += ( window_cloud->points[0].getVector3fMap() - window_cloud->points[k].getVector3fMap() );
@@ -366,7 +232,7 @@ float PCUtils::computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &clo
 //         curvatures.push_back(curv);
 //         // curvature[count] = smoothness;
 //         // count++;
-        
+
 //     }
 
 //     std::sort(curvatures.begin(),curvatures.end(),comparator);

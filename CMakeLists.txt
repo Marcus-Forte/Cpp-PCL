@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.1)
 project(marcusPCL)
 
-# My Arch pcl-10 folder
-# set (CMAKE_PREFIX_PATH /home/marcus/PCL/pcl-pcl-1.10.1/build/install)
-# set (PCL_DIR "/home/marcus/PCL/pcl-pcl-1.10.1/build/install/share/pcl-1.10/")
 
+#delanator
+add_subdirectory(submodules/delaunator-cpp)
 
 set (CMAKE_BUILD_TYPE Debug)
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -30,7 +29,6 @@ link_libraries(${PCL_LIBRARIES} -pthread OpenMP::OpenMP_CXX)
 add_library(Utils STATIC src/PCUtils.cpp)
 # add_library(Features STATIC src/Features.cpp) # header only
 
-add_executable(pcl_view_example src/pcl_view_example.cpp)
 add_executable(filters src/filters.cpp)
 add_executable(plane src/plane.cpp)
 add_executable(volume src/volume.cpp)
@@ -42,10 +40,10 @@ add_executable(geocrop src/geocrop.cpp)
 add_executable(subsample src/subsample.cpp)
 add_executable(segmentation src/segmentation.cpp)
 add_executable(registration src/registration.cpp)
-add_executable(registration2d src/registration2d.cpp)
 add_executable(features_registration src/registration2d_features.cpp)
 add_executable(features src/features_app.cpp)
 
+target_include_directories(volume PUBLIC submodules/delaunator-cpp/include)
 
 
 # test zone
@@ -75,9 +73,6 @@ target_link_libraries(visualize Utils)
 add_executable(extconverter src/extconverter.cpp)
 
 
-# tools
-add_executable(pcl_transform_point_cloud src/pcl_transform_point_cloud.cpp)
-
 
 # this is independent of PCL GPU support
 
@@ -88,6 +83,7 @@ if(${CUDA_FOUND})
 	add_executable(gputransform cuda_src/transform_test.cpp cuda_src/transform_kernel.cu)
 	target_include_directories(gputransform PUBLIC ${CUDA_INCLUDE_DIRS})
 	target_link_libraries(gputransform ${CUDA_LIBRARIES})
+	set_property(TARGET gputransform PROPERTY CUDA_ARCHITECTURES 30) # IMPORTANT !!!!
 
 endif()
 

@@ -25,7 +25,8 @@ class PCUtils
 {
 public:
 
-
+using PointT = pcl::PointXYZ;
+using PointCloudT = pcl::PointCloud<PointT>;
 		
 static void setColorMap(int n,int max,pcl::PointXYZRGB& pt){
 		float min_color = 0;
@@ -101,8 +102,10 @@ static void setColorMap(int n,int max,pcl::PointXYZRGB& pt){
 
 	// TODO heuristics
 	static void fillCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_out, int density = 2);
-	// 2.5D volume
-	static float computeVolume(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud_in, float res);
+	
+	
+
+	// static void bilinearInterpolation(const pcl::Poin)
 
 
 	//Feautres

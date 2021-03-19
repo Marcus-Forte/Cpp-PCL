@@ -11,79 +11,20 @@
 #include <mutex>
 #include <pcl/common/transforms.h>
 
+#include <pcl/filters/voxel_grid.h>
+
 #include "PCUtils.h"
 #include <vector>
 
-using PointCloudT = pcl::PointCloud<pcl::PointXYZRGB>;
+using PointCloudT = pcl::PCLPointCloud2;
 
-// TODO add multiple input clouds
+using ColorHandler = pcl::visualization::PointCloudColorHandler<pcl::PCLPointCloud2>;
+using ColorHandlerPtr = ColorHandler::Ptr;
+using ColorHandlerConstPtr = ColorHandler::ConstPtr;
 
-bool recopy = false;
-
-static bool compare_z(pcl::PointXYZRGB &a, pcl::PointXYZRGB &b)
-{
-	return (a.z < b.z);
-}
-
-static bool compare_x(pcl::PointXYZRGB &a, pcl::PointXYZRGB &b)
-{
-	return (a.x < b.x);
-}
-
-static bool compare_y(pcl::PointXYZRGB &a, pcl::PointXYZRGB &b)
-{
-	return (a.y < b.y);
-}
-
-std::mutex g_mutex;
-
-// thread here
-// TODO por alguma razão nuvens RGB (kinect) dão problema
-// TODO Implementar Pause, resume ..
-// TODO cores !
-// TODO velocidade flexivel
-void slow_copy(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr &src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr tgt, float delay)
-{
-
-	std::lock_guard<std::mutex> guard(g_mutex);
-	int size = src->size();
-
-	tgt->clear();
-	tgt->resize(size);
-
-	std::cout << "animating" << std::endl;
-	for (int i = 0; i < size; ++i)
-	{
-		tgt->points[i] = src->points[i];
-		std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
-	}
-
-	std::cout << "finished" << std::endl;
-	recopy = false;
-}
-
-void keyCallback(const pcl::visualization::KeyboardEvent &event)
-{
-	// std::cout << "key pressed " << std::endl;
-	char key = event.getKeyCode();
-
-	if (key == 'l')
-	{
-
-		// std::cout << "l" << std::endl;
-
-		if (g_mutex.try_lock() == false)
-		{
-			//std::cout << "locked" << std::endl;
-		}
-		else
-		{
-			// std::cout << "UNlocked" << std::endl;
-			g_mutex.unlock();
-			recopy = true;
-		}
-	}
-}
+using GeometryHandler = pcl::visualization::PointCloudGeometryHandler<pcl::PCLPointCloud2>;
+using GeometryHandlerPtr = GeometryHandler::Ptr;
+using GeometryHandlerConstPtr = GeometryHandler::ConstPtr;
 
 void make_grid(pcl::visualization::PCLVisualizer &viewer, float res = 1)
 {
@@ -94,18 +35,6 @@ void make_grid(pcl::visualization::PCLVisualizer &viewer, float res = 1)
 	int N_lines = 10;
 
 	pcl::PointXYZ p1, p2, p3, p4;
-	// p1.x = 0;
-	// p2.x = 0;
-	// p3.x = 0;
-	// p4.x = 0;
-	// p1.y = 0;
-	// p2.y = 0;
-	// p3.y = 0;
-	// p4.y = 0;
-	// p1.z = 0;
-	// p2.z = 0;
-	// p3.z = 0;
-	// p4.z = 0;
 
 	p1.x = x_min;
 	p2.x = x_max;
@@ -154,12 +83,9 @@ void pp_callback(const pcl::visualization::PointPickingEvent &event)
 	}
 }
 
-typedef pcl::PointCloud<pcl::PointXYZ> CloudType;
-
 int main(int argc, char **argv)
 {
 
-	
 	if (argc < 2)
 	{
 		std::cerr << "Usage : vizualise cloud.pcd/.txt ..." << std::endl;
@@ -173,25 +99,39 @@ int main(int argc, char **argv)
 	// viewer.setBackgroundColor(0, 0, 0, v1);
 	viewer.addCoordinateSystem(1, "ref", v1);
 	viewer.registerPointPickingCallback(pp_callback);
-	viewer.registerKeyboardCallback(keyCallback);
+	// viewer.registerKeyboardCallback(keyCallback);
 	make_grid(viewer, 1);
 
-	
 	int n_clouds = argc - 1;
-	
+
 	std::cout << "N clouds = " << n_clouds << std::endl;
 
 	std::vector<PointCloudT::Ptr> cloud_vector(n_clouds);
-
 
 	for (int i = 0; i < n_clouds; i++)
 	{
 		std::cout << "Reading file .. " << i << std::endl;
 		cloud_vector[i] = pcl::make_shared<PointCloudT>();
-		
-		PCUtils::readFile(argv[i+1], *cloud_vector[i]);
-		pcl::visualization::PointCloudColorHandlerRandom<pcl::PointXYZRGB> random_color(cloud_vector[i]);
-		viewer.addPointCloud(cloud_vector[i],random_color,"cloud" + std::to_string(i));
+
+		// PCUtils::readFile(argv[i+1], *cloud_vector[i]);
+		pcl::io::loadPCDFile(argv[i + 1], *cloud_vector[i]);
+		ColorHandlerPtr color;
+
+		Eigen::Vector4f origin = Eigen::Vector4f::Zero();
+		Eigen::Quaternionf orientation = Eigen::Quaternionf::Identity();
+
+		for (std::size_t j = 0; j < cloud_vector[i]->fields.size(); ++j)
+		{
+			std::string field_name = cloud_vector[i]->fields[j].name;
+			std::cout << "Color field: " << field_name << std::endl;
+			if(field_name == "rgba"){
+			color.reset(new pcl::visualization::PointCloudColorHandlerRGBAField<PointCloudT>(cloud_vector[i]));
+			} else {
+			color.reset(new pcl::visualization::PointCloudColorHandlerGenericField<PointCloudT>(cloud_vector[i], cloud_vector[i]->fields[j].name));
+			}
+			
+			viewer.addPointCloud(cloud_vector[i], color, origin, orientation, "cloud" + std::to_string(i));
+		}
 	}
 
 	std::cout << "Done" << std::endl;

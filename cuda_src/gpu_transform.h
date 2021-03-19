@@ -34,7 +34,7 @@ namespace mygpu
         Transform(const PointCloudT &cloud_in, const Eigen::Matrix4f &tf)
         {
             n_pts = cloud_in.size();
-            block_size = 512;
+            block_size = 1024;
             grid_size = (n_pts + block_size - 1) / block_size;
 
             std::cout << "Blk Size:" << block_size << std::endl;
@@ -84,9 +84,10 @@ namespace mygpu
 
 
 
-
-
-            std::cout << "Alloc points OK" << std::endl;
+            std::cout << "Total MB Allocated: " << (float)(n_pts * sizeof(pcl::PointXYZ) +  //input
+                                                   sizeof(Eigen::Matrix4f) + // matrix
+                                                   n_pts * sizeof(pcl::PointXYZ)) / 1048576.0f << std::endl; // output
+                                                   
         }
 
         // Each kernel is to compute transform of each point

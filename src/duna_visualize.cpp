@@ -180,61 +180,61 @@ void keyCallback(const pcl::visualization::KeyboardEvent &event, void *cookie)
 	}
 }
 
-void make_grid(pcl::visualization::PCLVisualizer &viewer, float res = 1)
-{
-	float x_min = -10;
-	float x_max = 10;
-	float y_min = -10;
-	float y_max = 10;
-	int N_lines = 10;
+// void make_grid(pcl::visualization::PCLVisualizer &viewer, float res = 1)
+// {
+// 	float x_min = -10;
+// 	float x_max = 10;
+// 	float y_min = -10;
+// 	float y_max = 10;
+// 	int N_lines = 10;
 
-	pcl::PointXYZ p1, p2, p3, p4;
-	// p1.x = 0;
-	// p2.x = 0;
-	// p3.x = 0;
-	// p4.x = 0;
-	// p1.y = 0;
-	// p2.y = 0;
-	// p3.y = 0;
-	// p4.y = 0;
-	// p1.z = 0;
-	// p2.z = 0;
-	// p3.z = 0;
-	// p4.z = 0;
+// 	pcl::PointXYZ p1, p2, p3, p4;
+// 	// p1.x = 0;
+// 	// p2.x = 0;
+// 	// p3.x = 0;
+// 	// p4.x = 0;
+// 	// p1.y = 0;
+// 	// p2.y = 0;
+// 	// p3.y = 0;
+// 	// p4.y = 0;
+// 	// p1.z = 0;
+// 	// p2.z = 0;
+// 	// p3.z = 0;
+// 	// p4.z = 0;
 
-	p1.x = x_min;
-	p2.x = x_max;
-	p1.y = y_min;
-	p2.y = y_min;
+// 	p1.x = x_min;
+// 	p2.x = x_max;
+// 	p1.y = y_min;
+// 	p2.y = y_min;
 
-	p3.x = x_min;
-	p4.x = x_min;
-	p3.y = y_min;
-	p4.y = y_max;
+// 	p3.x = x_min;
+// 	p4.x = x_min;
+// 	p3.y = y_min;
+// 	p4.y = y_max;
 
-	float y = y_min;
-	float x = x_min;
-	int i = 0;
-	while (y < y_max && x < x_max)
-	{
-		p1.y = y;
-		p2.y = y;
-		p3.x = x;
-		p4.x = x;
-		viewer.addLine(p1, p2, "line" + std::to_string(i++));
-		viewer.addLine(p3, p4, "line" + std::to_string(i++));
+// 	float y = y_min;
+// 	float x = x_min;
+// 	int i = 0;
+// 	while (y < y_max && x < x_max)
+// 	{
+// 		p1.y = y;
+// 		p2.y = y;
+// 		p3.x = x;
+// 		p4.x = x;
+// 		viewer.addLine(p1, p2, "line" + std::to_string(i++));
+// 		viewer.addLine(p3, p4, "line" + std::to_string(i++));
 
-		y += res;
-		x += res;
-	}
-	p1.y = y;
-	p2.y = y;
-	p3.x = x;
-	p4.x = x;
+// 		y += res;
+// 		x += res;
+// 	}
+// 	p1.y = y;
+// 	p2.y = y;
+// 	p3.x = x;
+// 	p4.x = x;
 
-	viewer.addLine(p1, p2, "line" + std::to_string(i++));
-	viewer.addLine(p3, p4, "line" + std::to_string(i++));
-}
+// 	viewer.addLine(p1, p2, "line" + std::to_string(i++));
+// 	viewer.addLine(p3, p4, "line" + std::to_string(i++));
+// }
 
 void pp_callback(const pcl::visualization::PointPickingEvent &event)
 {
@@ -291,7 +291,7 @@ int main(int argc, char **argv)
 	viewer.createViewPort(0, 0, 1, 1, v1);
 	// viewer.setCameraPosition(-6.61, -2.13, 10.33, 1.0, 1, 1);
 	// viewer.setBackgroundColor(0, 0, 0, v1);
-	// viewer.addCoordinateSystem(1, "ref", v1);
+	 viewer.addCoordinateSystem(1, "ref", v1);
 	viewer.registerPointPickingCallback(pp_callback);
 	viewer.registerKeyboardCallback(keyCallback, &viewer);
 	viewer.registerAreaPickingCallback(areaPickCallback, &viewer);
