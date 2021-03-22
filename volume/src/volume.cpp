@@ -5,18 +5,17 @@
 
 #include <pcl/console/parse.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/surface/convex_hull.h>
 
 // Utilidades (Classe)
 #include "PCUtils.h"
 #include "delabella.h"
 #include "compute_volume.hpp"
 
-
 using PointT = pcl::PointXYZ;
 using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
 using PointCloudT2D = pcl::PointCloud<pcl::PointXY>;
-
-
 
 void PrintUsage(const char *progName)
 {
@@ -34,9 +33,8 @@ int main(int argc, char **argv)
 	float resolution = 0.1;
 	std::string ground_file;
 
-	pcl::console::parse_argument(argc,argv,"-r",resolution);
-	pcl::console::parse_argument(argc,argv,"-g",ground_file);
-
+	pcl::console::parse_argument(argc, argv, "-r", resolution);
+	pcl::console::parse_argument(argc, argv, "-g", ground_file);
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr processing_cloud(new pcl::PointCloud<pcl::PointXYZ>); // Cloud to be processed
@@ -44,26 +42,41 @@ int main(int argc, char **argv)
 	PCUtils::readFile(argv[1], *cloud);
 
 	volumeEstimator<PointT> estimator(resolution);
+	estimator.setInputCloud(cloud);
+	estimator.setDebug(true);
+	estimator.SetRegistration(true);
 
-	if(ground_file.size()){
+	if (ground_file.size())
+	{
 		PCL_INFO("Ground file found.\n");
-		PointCloudT::Ptr ground (new PointCloudT);
-		PCUtils::readFile(ground_file,*ground);
+
+		PCL_INFO("Removing ground\n");
+
+		PointCloudT::Ptr ground(new PointCloudT);
+		PCUtils::readFile(ground_file, *ground);
+
+		// Remove useless ground
+		pcl::PassThrough<pcl::PointXYZ> passthrough;
+		passthrough.setInputCloud(cloud);
+		passthrough.setFilterFieldName("z");
+		passthrough.setFilterLimits(0.2, 100);
+		passthrough.filter(*cloud);
+
+		passthrough.setInputCloud(ground);
+		passthrough.filter(*ground);
 
 
-	} else {
+		estimator.setGroundCloud(ground);
 
-		estimator.setInputCloud(cloud);
-		double volume = estimator.compute();
-		
+		estimator.compute();
 	}
-
-
+	else
+	{
+	}
 
 	return 0;
 
 	pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZ> color(processing_cloud, "z");
-
 	// std::cout << "cloud" << *cloud << std::endl;
 	// std::cout << "processing_cloud" << *processing_cloud << std::endl;
 
@@ -84,8 +97,5 @@ int main(int argc, char **argv)
 		viewer.spin();
 	}
 
-
 	return 0;
 }
-
-
