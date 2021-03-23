@@ -41,6 +41,14 @@ int main(int argc, char **argv)
 
 	PCUtils::readFile(argv[1], *cloud);
 
+	// Remove useless ground
+	PCL_INFO("Removing noise\n");
+	pcl::PassThrough<pcl::PointXYZ> passthrough;
+	passthrough.setInputCloud(cloud);
+	passthrough.setFilterFieldName("z");
+	passthrough.setFilterLimits(0.2, 100);
+	passthrough.filter(*cloud);
+
 	volumeEstimator<PointT> estimator(resolution);
 	estimator.setInputCloud(cloud);
 	estimator.setDebug(true);
@@ -48,30 +56,21 @@ int main(int argc, char **argv)
 
 	if (ground_file.size())
 	{
-		PCL_INFO("Ground file found.\n");
-
-		PCL_INFO("Removing ground\n");
+		PCL_INFO("Ground file found.\n");		
 
 		PointCloudT::Ptr ground(new PointCloudT);
 		PCUtils::readFile(ground_file, *ground);
 
-		// Remove useless ground
-		pcl::PassThrough<pcl::PointXYZ> passthrough;
-		passthrough.setInputCloud(cloud);
-		passthrough.setFilterFieldName("z");
-		passthrough.setFilterLimits(0.2, 100);
-		passthrough.filter(*cloud);
-
 		passthrough.setInputCloud(ground);
 		passthrough.filter(*ground);
 
-
 		estimator.setGroundCloud(ground);
-
 		estimator.compute();
 	}
 	else
 	{
+
+		estimator.compute();
 	}
 
 	return 0;
