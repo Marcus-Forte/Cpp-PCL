@@ -51,8 +51,10 @@ int main(int argc, char **argv)
 
 	volumeEstimator<PointT> estimator(resolution);
 	estimator.setInputCloud(cloud);
-	estimator.setDebug(true);
+	// estimator.setDebug(true);
 	estimator.SetRegistration(true);
+
+	double volume = 0;
 
 	if (ground_file.size())
 	{
@@ -65,13 +67,14 @@ int main(int argc, char **argv)
 		passthrough.filter(*ground);
 
 		estimator.setGroundCloud(ground);
-		estimator.compute();
+		volume = estimator.compute();
 	}
 	else
 	{
-
-		estimator.compute();
+		volume = estimator.compute();
 	}
+
+	std::cout << "Volume: " << volume << std::endl;
 
 	return 0;
 

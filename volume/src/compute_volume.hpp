@@ -160,9 +160,10 @@ public:
                             viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "box");
                         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "box");
                         viewer->spinOnce(25);
+                        std::cout << "Volume: " << sum_z * resolution * resolution << std::endl;
                     }
 
-                    std::cout << "Volume: " << sum_z * resolution * resolution << std::endl;
+                    
                 }
 
                 box_min.x += resolution;
