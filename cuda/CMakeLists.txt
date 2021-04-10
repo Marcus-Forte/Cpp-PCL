@@ -7,7 +7,8 @@ if(${CUDA_FOUND})
         add_executable(gputransform src/transform_test.cpp src/transform_kernel.cu)
         target_include_directories(gputransform PUBLIC ${CUDA_INCLUDE_DIRS})
         target_link_libraries(gputransform ${CUDA_LIBRARIES})
-        set_property(TARGET gputransform PROPERTY CUDA_ARCHITECTURES 30) # I    MPORTANT !!!!
+        #set_property(TARGET gputransform PROPERTY CUDA_ARCHITECTURES 30) # I    MPORTANT !!!!
+        
 
 endif()
 

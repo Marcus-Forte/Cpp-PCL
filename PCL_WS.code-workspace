@@ -6,6 +6,7 @@
 	],
 	"settings": {
 		"files.associations": {
+			"*.cu": "cuda",
 			"cctype": "cpp",
 			"clocale": "cpp",
 			"cmath": "cpp",
@@ -77,7 +78,10 @@
 			"ranges": "cpp",
 			"stop_token": "cpp",
 			"*.ipp": "cpp",
-			"nonlinearoptimization": "cpp"
+			"nonlinearoptimization": "cpp",
+			"core": "cpp",
+			"numericaldiff": "cpp",
+			"__locale": "cpp"
 		}
 	}
 }

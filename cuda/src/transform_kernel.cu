@@ -2,64 +2,88 @@
 
 #include "gpu_transform.h"
 
+// __global__ void matMultKernel(const float* A, const float*B, float* C, int m, int n, int k)
 
+__global__ void GPUTransform(const pcl::PointXYZ *pts, pcl::PointXYZ *cloud_out_pts, const Eigen::Matrix4f *matrix, int n_pts)
+{
 
-// Each kernel computes the entire matrix multiplication PER point
-__global__ void GPUTransform(pcl::PointXYZ* pts, pcl::PointXYZ* tf_pts, const Eigen::Matrix4f* matrix, int n_pts){
-        
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
-        int stride = blockDim.x * gridDim.x;
-
-        // very very stupid kernel usage
-        // if(tid < n_pts){
-        //         tf_pts[tid].x =  (*matrix)(0,0) * pts[tid].x  + (*matrix)(0,1) * pts[tid].y + (*matrix)(0,2) * pts[tid].z + (*matrix)(0,3);
-        //         tf_pts[tid].y =  (*matrix)(1,0) * pts[tid].x  + (*matrix)(1,1) * pts[tid].y + (*matrix)(1,2) * pts[tid].z + (*matrix)(1,3);
-        //         tf_pts[tid].z =  (*matrix)(2,0) * pts[tid].x  + (*matrix)(2,1) * pts[tid].y + (*matrix)(2,2) * pts[tid].z + (*matrix)(2,3);
-
-        // }
-
-        for(int i=tid;i<n_pts;i += stride){
-                tf_pts[tid].x =  (*matrix)(0,0) * pts[tid].x  + (*matrix)(0,1) * pts[tid].y + (*matrix)(0,2) * pts[tid].z + (*matrix)(0,3);
-                tf_pts[tid].y =  (*matrix)(1,0) * pts[tid].x  + (*matrix)(1,1) * pts[tid].y + (*matrix)(1,2) * pts[tid].z + (*matrix)(1,3);
-                tf_pts[tid].z =  (*matrix)(2,0) * pts[tid].x  + (*matrix)(2,1) * pts[tid].y + (*matrix)(2,2) * pts[tid].z + (*matrix)(2,3);
-
+        int row = blockIdx.y * blockDim.y + threadIdx.y;
+        int col = blockIdx.x * blockDim.x + threadIdx.x;
+        float sum = 0;
+        // printf("row: %d\n", row);
+        if (col < n_pts && row < 4)
+        {
+                sum += (*matrix)(row, 0) * pts[col].x;
+                sum += (*matrix)(row, 1) * pts[col].y;
+                sum += (*matrix)(row, 2) * pts[col].z;
+                sum += (*matrix)(row, 3); //tx
+                cloud_out_pts[col].data[row] = sum;           
         }
-
-}
-
-// A smater kernel would 
-
-
-void mygpu::Transform::Apply(PointCloudT& cloud_transformed){
-        
-        GPUTransform<<<block_size,grid_size>>>(pts_d,tf_pts_d,matrix_d,n_pts);
-        cudaDeviceSynchronize();
-        // Get Results
-        cloud_transformed.resize(n_pts);
-        cudaError_t err = cudaMemcpy(cloud_transformed.points.data(), tf_pts_d, n_pts * sizeof(pcl::PointXYZ), cudaMemcpyDeviceToHost);
-        if(err != cudaSuccess){
-        std::cout << "GPU memCpy error " << std::endl;
-        exit(EXIT_FAILURE);
-        
-        }
-        
-
-
 
         
 }
 
-// __global__ void vectorAddGPU(float *A, const float *B, int numElements) {
-// int tid = blockIdx.x * blockDim.x + threadIdx.x;
-// int stride = blockDim.x * gridDim.x;
+namespace gpu
+{
 
+        void Transform(const pcl::PointCloud<pcl::PointXYZ> &cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, const Eigen::Matrix4f &transform)
+        {
+                pcl::PointXYZ *d_pts;
+                Eigen::Matrix4f *d_transform_matrix;
+                pcl::PointXYZ *d_tf_pts;
 
+                int n_pts = cloud.points.size();
 
-// for(int i=tid;i<numElements;i += stride){
-// 		A[i] = A[i] * B[i];
-// }
+                if (cloud_out.points.size() != n_pts)
+                        cloud_out.points.resize(n_pts);
 
-// }
+                cudaError_t err;
 
+                err = cudaMalloc(&d_pts, n_pts * sizeof(pcl::PointXYZ));
+                if (err != cudaSuccess)
+                        std::cout << "cudaMalloc Failure" << std::endl;
 
+                err = cudaMalloc(&d_transform_matrix, sizeof(Eigen::Matrix4f));
+                if (err != cudaSuccess)
+                        std::cout << "cudaMalloc Failure" << std::endl;
 
+                err = cudaMalloc(&d_tf_pts, n_pts * sizeof(pcl::PointXYZ));
+                if (err != cudaSuccess)
+                        std::cout << "cudaMalloc Failure" << std::endl;
+
+                std::cout << "GPU Mem Used: " << (2 * n_pts * sizeof(pcl::PointXYZ) + sizeof(Eigen::Matrix4f)) / 1000000 << " MB" << std::endl;
+
+                err = cudaMemcpy(d_pts, cloud.points.data(), n_pts * sizeof(pcl::PointXYZ), cudaMemcpyHostToDevice);
+                if (err != cudaSuccess)
+                        std::cout << "cudaMalloc Failure" << std::endl;
+
+                err = cudaMemcpy(d_transform_matrix, &transform, sizeof(Eigen::Matrix4f), cudaMemcpyHostToDevice);
+
+                // Kernel Call
+                int m = 4;
+                int n = 4;
+                int k = n_pts;
+
+                int threads_per_block = 16; //
+                unsigned int grid_rows = (m + threads_per_block - 1) / threads_per_block;
+                unsigned int grid_cols = (k + threads_per_block - 1) / threads_per_block;
+                dim3 dimGrid(grid_cols, grid_rows);
+                dim3 dimBlock(threads_per_block, threads_per_block);
+                // printf("dimGrid (%d,%d,%d)\n",dimGrid.x,dimGrid.y,dimGrid.z);
+                // printf("dimBlock (%d,%d,%d)\n",dimBlock.x,dimBlock.y,dimBlock.z);
+                GPUTransform<<<dimGrid, dimBlock>>>(d_pts, d_tf_pts, d_transform_matrix, n_pts);
+
+                err = cudaGetLastError();
+                if (err != cudaSuccess)
+                        std::cout << "Kernel launch error: " << cudaGetErrorString(err) << std::endl;
+
+                err = cudaMemcpy(cloud_out.points.data(), d_tf_pts, n_pts * sizeof(pcl::PointXYZ), cudaMemcpyDeviceToHost);
+                if (err != cudaSuccess)
+                        std::cout << "cudaMemcpy Failure" << std::endl;
+
+                cudaFree(d_pts);
+                cudaFree(d_tf_pts);
+                cudaFree(d_pts);
+        }
+
+}
