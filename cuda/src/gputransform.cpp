@@ -22,6 +22,14 @@ using PointCloudT = pcl::PointCloud<PointT>;
 
 using namespace std::chrono;
 
+// template <typename PointT>
+// class GPUPointCloud : public pcl::PointCloud<PointT> {
+// 	public:
+// 	using pcl::PointCloud<PointT>::points = pts;
+
+// 	private:
+// };
+
 bool isSamePoint(const PointT &p0, const PointT &p1)
 {
 	static const float approx = 0.001;
@@ -47,7 +55,11 @@ int main(int argc, char **argv)
 
 	int N = atoi(argv[1]);
 
-	PointCloudT cloud;
+	PointCloudT *cloud_;
+	// float* f;
+	cudaMallocManaged(&cloud_, sizeof(PointCloudT));
+
+	PointCloudT &cloud = (*cloud_);
 	cloud.resize(N);
 	for (int i = 0; i < N; ++i)
 	{
@@ -59,7 +71,13 @@ int main(int argc, char **argv)
 
 	std::cout << "Number of Points : " << cloud.size() << std::endl; // C
 
-	Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+	Eigen::Matrix4f *transform_;
+
+	cudaMallocManaged(&transform_, sizeof(Eigen::Matrix4f));
+
+	Eigen::Matrix4f &transform = (*transform_);
+
+	transform = Eigen::Matrix4f::Identity();
 
 	// Arbitrary transform
 	float theta = M_PI / 4;
@@ -86,12 +104,17 @@ int main(int argc, char **argv)
 
 	std::cout << "CPU Time: " << elapsed_cpu_ms << " ms" << std::endl;
 
-	PointCloudT gpu_transformed_cloud;
+	PointCloudT *gpu_transformed_cloud_;
+	cudaMallocManaged(&gpu_transformed_cloud_, sizeof(PointCloudT));
 
-	pcl::PointXYZ *ptr = gpu_transformed_cloud.points.data();
+	PointCloudT &gpu_transformed_cloud = (*gpu_transformed_cloud_);
+	// gpu_transformed_cloud_->resize(N);
+
+	// pcl::PointXYZ *ptr = gpu_transformed_cloud.points.data();
 
 	cudaEventRecord(start, 0);
-	gpu::Transform(cloud, gpu_transformed_cloud, transform);
+	// gpu::Transform(cloud, gpu_transformed_cloud, transform);
+	gpu::TransformUnified(cloud, gpu_transformed_cloud, transform);
 	cudaDeviceSynchronize();
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
@@ -99,8 +122,6 @@ int main(int argc, char **argv)
 	cudaEventElapsedTime(&elapsed_gpu_ms, start, stop);
 
 	std::cout << "GPU Time: " << elapsed_gpu_ms << " [ms]" << std::endl;
-
-	
 
 	// Check Results
 	bool allGood = true;

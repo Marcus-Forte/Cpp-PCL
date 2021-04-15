@@ -13,6 +13,7 @@ __global__ void GPUTransform(const pcl::PointXYZ *pts, pcl::PointXYZ *cloud_out_
         // printf("row: %d\n", row);
         if (col < n_pts && row < 4)
         {
+                printf("%f\n", pts[col].x);
                 sum += (*matrix)(row, 0) * pts[col].x;
                 sum += (*matrix)(row, 1) * pts[col].y;
                 sum += (*matrix)(row, 2) * pts[col].z;
@@ -25,6 +26,41 @@ __global__ void GPUTransform(const pcl::PointXYZ *pts, pcl::PointXYZ *cloud_out_
 
 namespace gpu
 {
+
+        void TransformUnified(const pcl::PointCloud<pcl::PointXYZ> &cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, const Eigen::Matrix4f &transform)
+        {
+                // pcl::PointXYZ *d_pts;
+                // Eigen::Matrix4f *d_transform_matrix;
+                // pcl::PointXYZ *d_tf_pts;
+
+                int n_pts = cloud.points.size();
+
+                if (cloud_out.points.size() != n_pts)
+                        cloud_out.points.resize(n_pts);
+
+                cudaError_t err;
+
+
+                // Kernel Call
+                int m = 4;
+                int n = 4;
+                int k = n_pts;
+
+                int threads_per_block = 16; //
+                unsigned int grid_rows = (m + threads_per_block - 1) / threads_per_block;
+                unsigned int grid_cols = (k + threads_per_block - 1) / threads_per_block;
+                dim3 dimGrid(grid_cols, grid_rows);
+                dim3 dimBlock(threads_per_block, threads_per_block);
+                // printf("dimGrid (%d,%d,%d)\n",dimGrid.x,dimGrid.y,dimGrid.z);
+                // printf("dimBlock (%d,%d,%d)\n",dimBlock.x,dimBlock.y,dimBlock.z);
+                GPUTransform<<<dimGrid, dimBlock>>>(cloud.points.data(), cloud_out.points.data(), &transform, n_pts);
+
+                err = cudaGetLastError();
+                if (err != cudaSuccess)
+                        std::cout << "Kernel launch error: " << cudaGetErrorString(err) << std::endl;
+
+
+        }
 
         void Transform(const pcl::PointCloud<pcl::PointXYZ> &cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, const Eigen::Matrix4f &transform)
         {
