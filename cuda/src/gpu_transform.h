@@ -8,7 +8,8 @@
 
 namespace gpu
 {
-   void TransformUnified(const pcl::PointCloud<pcl::PointXYZ> &cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, const Eigen::Matrix4f &transform);
+   // nao adiata .. o vector "points" precisa ser managed tambem
+   void TransformUnified(const pcl::PointCloud<pcl::PointXYZ> *cloud, pcl::PointCloud<pcl::PointXYZ> *cloud_out, const Eigen::Matrix4f *transform);
    void Transform(const pcl::PointCloud<pcl::PointXYZ> &cloud, pcl::PointCloud<pcl::PointXYZ> &cloud_out, const Eigen::Matrix4f &transform);
 }
 

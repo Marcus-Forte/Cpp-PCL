@@ -20,15 +20,58 @@
 using PointT = pcl::PointXYZ;
 using PointCloudT = pcl::PointCloud<PointT>;
 
+template <typename T>
+struct mallocator
+{
+	using value_type = T;
+
+	mallocator() = default;
+	template <class U>
+	mallocator(const mallocator<U> &) {}
+
+	T *allocate(std::size_t n)
+	{
+		std::cout << "allocate(" << n << ") = ";
+		if (n <= std::numeric_limits<std::size_t>::max() / sizeof(T))
+		{
+			void* ptr;
+			cudaMallocManaged(&ptr,sizeof(T));
+			// if (auto ptr = std::malloc(n * sizeof(T)))
+			// {
+			// 	return static_cast<T *>(ptr);
+			// }
+			return (T*)ptr;
+		}
+		return nullptr;
+		// throw std::bad_alloc();
+	}
+	void deallocate(T *ptr, std::size_t n)
+	{
+		cudaFree(ptr);
+		// std::free(ptr);
+	}
+};
+
+class Managed
+{
+public:
+	void *operator new(size_t len)
+	{
+		void *ptr;
+		printf("Calling managed.");
+		cudaMallocManaged(&ptr, len);
+		cudaDeviceSynchronize();
+		return ptr;
+	}
+
+	void operator delete(void *ptr)
+	{
+		cudaDeviceSynchronize();
+		cudaFree(ptr);
+	}
+};
+
 using namespace std::chrono;
-
-// template <typename PointT>
-// class GPUPointCloud : public pcl::PointCloud<PointT> {
-// 	public:
-// 	using pcl::PointCloud<PointT>::points = pts;
-
-// 	private:
-// };
 
 bool isSamePoint(const PointT &p0, const PointT &p1)
 {
@@ -53,11 +96,49 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
+	int nDevices;
+
+	cudaGetDeviceCount(&nDevices);
+
+	if (nDevices == 0)
+	{
+		std::cerr << "No CUDA devices found." << std::endl;
+		exit(-1);
+	}
+
+	cudaError_t err;
+
 	int N = atoi(argv[1]);
+
+	class testType : public Managed
+	{
+	public:
+		float a;
+		float b;
+		// std::vector<float, mallocator<float>> vec;
+		float* vec;
+	};
+
+	testType *obj = new testType;
+	
+	cudaMallocManaged(&obj->vec,sizeof(float));
+	// obj->vec.resize(25);
+
+
+	cudaMallocManaged(&obj, sizeof(testType));
+
+	cudaPointerAttributes attributes;
+	err = cudaPointerGetAttributes(&attributes, obj);
+	std::cout << "Type: " << attributes.type << std::endl;
+
+	err = cudaPointerGetAttributes(&attributes, obj->vec);
+	std::cout << "Member Type: " << attributes.type << std::endl;
+
+	return 0;
 
 	PointCloudT *cloud_;
 	// float* f;
-	cudaMallocManaged(&cloud_, sizeof(PointCloudT));
+	cudaMallocManaged(&cloud_, sizeof(PointCloudT)); // nao adiata .. o vector "points" precisa ser managed tambem
 
 	PointCloudT &cloud = (*cloud_);
 	cloud.resize(N);
@@ -80,14 +161,14 @@ int main(int argc, char **argv)
 	transform = Eigen::Matrix4f::Identity();
 
 	// Arbitrary transform
-	float theta = M_PI / 4;
+	float theta = 0; // M_PI / 4;
 	transform(0, 0) = cos(theta);
 	transform(0, 1) = -sin(theta);
 	transform(1, 0) = sin(theta);
 	transform(1, 1) = cos(theta);
-	transform(0, 3) = 5; //yz
-	transform(1, 3) = 5; //ty
-	transform(2, 3) = 5; //tz
+	transform(0, 3) = 0; //yz
+	transform(1, 3) = 0; //ty
+	transform(2, 3) = 0; //tz
 
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -114,7 +195,7 @@ int main(int argc, char **argv)
 
 	cudaEventRecord(start, 0);
 	// gpu::Transform(cloud, gpu_transformed_cloud, transform);
-	gpu::TransformUnified(cloud, gpu_transformed_cloud, transform);
+	gpu::TransformUnified(cloud_, gpu_transformed_cloud_, transform_);
 	cudaDeviceSynchronize();
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
