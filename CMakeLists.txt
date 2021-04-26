@@ -23,7 +23,7 @@ link_libraries(${PCL_LIBRARIES} -pthread)
 add_subdirectory(utilities)
 add_subdirectory(volume)
 add_subdirectory(cuda)
-add_subdirectory(slam)
+add_subdirectory(registration)
 add_subdirectory(tests)
 
 
