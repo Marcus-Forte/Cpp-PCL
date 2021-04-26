@@ -17,6 +17,7 @@
 #include <pcl/io/pcd_io.h>
 
 #include "my_transform.hpp"
+#include "my_transform_normals.hpp"
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/registration_visualizer.h>
@@ -26,31 +27,30 @@
 using PointT = pcl::PointXYZINormal;
 using PointCloudT = pcl::PointCloud<PointT>;
 
-class Parent {
-    public:
-
-    protected:
+class Parent
+{
+public:
+protected:
     int prot_m;
 };
 
-class Child : public Parent {
-
+class Child : public Parent
+{
 
     // using Parent::prot_m;
-    public:
-
-    int getProt(){
+public:
+    int getProt()
+    {
         return prot_m;
     }
 
-    protected:
+protected:
 };
-
 
 int main(int argc, char **argv)
 {
 
-    pcl::console::setVerbosityLevel(pcl::console::VERBOSITY_LEVEL::L_VERBOSE);
+    // pcl::console::setVerbosityLevel(pcl::console::VERBOSITY_LEVEL::L_VERBOSE);
 
     PCL_DEBUG("DEBUG ON!");
 
@@ -77,54 +77,81 @@ int main(int argc, char **argv)
     PCL_INFO("src pts : %d\n", source->size());
     PCL_INFO("tgt pts : %d\n", target->size());
 
+    clock_t start, elapsed;
+
     PointCloudT::Ptr aligned(new PointCloudT);
 
-
-    pcl::NormalEstimation<PointT,PointT> ne;
+    pcl::NormalEstimation<PointT, PointT> ne;
     ne.setInputCloud(target);
     ne.setKSearch(10);
     ne.compute(*target);
 
-    pcl::IterativeClosestPoint<PointT,PointT> reg;
+    pcl::IterativeClosestPoint<PointT, PointT> reg;
     // pcl::GeneralizedIterativeClosestPoint<PointT, PointT> reg;
     // pcl::registration::FPCSInitialAlignment<PointT,PointT> reg;
 
     pcl::RegistrationVisualizer<PointT, PointT> visualizer;
-    
+
     reg.setInputSource(source);
     reg.setInputTarget(target);
     // visualizer.setRegistration(icp);
     reg.setMaxCorrespondenceDistance(0.5);
-    reg.setMaximumIterations(50);
-    // reg.setRANSACOutlierRejectionThreshold(0.15);
-    // reg.setRANSACIterations(5);
-    // reg.setRotationEpsilon(0.2);
-    // reg.setCorrespondenceRandomness(12);
-    // icp.getCorrespondenceRejectors()
-    // 0.000654 vs 0.000877
-    // pcl::registration::TransformationEstimation3Point<PointT,PointT>::Ptr transform_(new pcl::registration::TransformationEstimation3Point<PointT,PointT>);
-    // pcl::registration::TransformationEstimationDualQuaternion<PointT,PointT>::Ptr transform_(new pcl::registration::TransformationEstimationDualQuaternion<PointT,PointT>);
-    MyTransform<PointT, PointT>::Ptr transform_(new MyTransform<PointT, PointT>);
-    // pcl::registration::TransformationEstimationLM<PointT,PointT>::Ptr transform_(new pcl::registration::TransformationEstimationLM<PointT,PointT>);
-    // pcl::registration::TransformationEstimationPointToPlaneLLS<PointT,PointT>::Ptr transform_(new pcl::registration::TransformationEstimationPointToPlaneLLS<PointT,PointT>);
-    // pcl::registration::TransformationEstimationPointToPlane<PointT,PointT>::Ptr transform_ (new pcl::registration::TransformationEstimationPointToPlane<PointT,PointT>);
-    reg.setTransformationEstimation(transform_);
-    reg.setTransformationEpsilon(1e-7);
-    // reg.setRotationEpsilon(1e-8);
-    
-    
+    reg.setMaximumIterations(100);
+    reg.setTransformationEpsilon(1e-6);
 
+    pcl::registration::TransformationEstimation<PointT, PointT>::Ptr transform_;
 
     // visualizer.setRegistration(reg);
     // visualizer.startDisplay();
     // visualizer.setMaximumDisplayedCorrespondences(100);
-    clock_t start = clock();
-    reg.align(*aligned);
-    clock_t elapsed = clock() - start;
-    PCL_INFO("Alignment time: %f\n", (float) elapsed /CLOCKS_PER_SEC);
 
+    start = clock();
+    transform_.reset(new MyTransform<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time Marcus: %f\n", (float)elapsed / CLOCKS_PER_SEC);
     PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
-  
+
+    start = clock();
+    transform_.reset(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time LM: %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+
+    start = clock();
+    transform_.reset(new pcl::registration::TransformationEstimationPointToPlane<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time LM Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+
+    start = clock();
+    transform_.reset(new pcl::registration::TransformationEstimationPointToPlaneLLS<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time: Normals LLS %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+
+    start = clock();
+    transform_.reset(new pcl::registration::TransformationEstimationDualQuaternion<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time: Dual Quat %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+
+    start = clock();
+    transform_.reset(new MyTransformNormals<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time Marcus Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
     reg.hasConverged() ? PCL_INFO("Converged\n") : PCL_INFO("Not Converged\n");
 
