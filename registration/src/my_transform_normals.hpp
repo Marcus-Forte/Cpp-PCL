@@ -1,9 +1,8 @@
 #pragma once
 
 #include <pcl/registration/transformation_estimation.h>
+#include <pcl/registration/warp_point_rigid_6d.h>
 #include <pcl/console/print.h>
-
-#include <omp.h>
 
 //idea for Feature-ICP usage;
 // icp.setSourceEdges
@@ -16,15 +15,23 @@
 
 using namespace pcl::registration;
 
-template <typename PointSource, typename PointTarget, typename Scalar = float>
-class MyTransformNormals : public TransformationEstimation<PointSource, PointTarget, Scalar>
+template <typename PointSource, typename PointTarget, typename MatScalar = float>
+class MyTransformNormals : public TransformationEstimation<PointSource, PointTarget, MatScalar>
 {
 public:
-    using Ptr = pcl::shared_ptr<MyTransformNormals<PointSource, PointTarget, Scalar>>;
-    using ConstPtr = pcl::shared_ptr<const MyTransformNormals<PointSource, PointTarget, Scalar>>;
-    using Matrix4 = typename TransformationEstimation<PointSource, PointTarget, Scalar>::Matrix4;
+    using Ptr = pcl::shared_ptr<MyTransformNormals<PointSource, PointTarget, MatScalar>>;
+    using ConstPtr = pcl::shared_ptr<const MyTransformNormals<PointSource, PointTarget, MatScalar>>;
+    using VectorX = Eigen::Matrix<MatScalar, Eigen::Dynamic, 1>;
+    using MatrixX = Eigen::Matrix<MatScalar, Eigen::Dynamic, Eigen::Dynamic>;
+    using Vector3 = Eigen::Matrix<MatScalar, 3, 1>;
+    using Vector4 = Eigen::Matrix<MatScalar, 4, 1>;
+    using Matrix3 = Eigen::Matrix<MatScalar, 3, 3>;
+    using Matrix4 = typename TransformationEstimation<PointSource, PointTarget, MatScalar>::Matrix4;
 
-    MyTransformNormals() {}
+    MyTransformNormals()
+    {
+        warp_point_.reset(new WarpPointRigid6D<PointSource, PointTarget, MatScalar>);
+    }
     ~MyTransformNormals() {}
 
     inline void
@@ -65,130 +72,128 @@ public:
         Matrix4 &transformation_matrix) const
     {
         size_t n_pts = correspondences.size();
-        // PCL_DEBUG("Correspondences: %d", n_pts);
+        PCL_DEBUG("Correspondences: %d\n", n_pts);
         // Parameters : tx, ty, tz, ax, ay, az
-        Eigen::VectorXf parameters(6);
-
-        // Eigen::MatrixXf Jacobian(3, 6); // 3 x 6
-        // Eigen::VectorXf Error(3); // 3 x 1
-        // Eigen::MatrixXf Hessian(6, 6); // 6 x 3 x 3 x 6 -> 6 x 6
+        VectorX parameters(6);
 
         Eigen::MatrixXf Jacobian(1, 6); // 3 x 6
-        Eigen::VectorXf Error(1);       // 3 x 1
-        Eigen::MatrixXf Hessian(6, 6);  // 6 x 1 x 1 x 6 -> 6 x 6
+        Eigen::MatrixXf Jacobian_(3, 6); // 3 x 6
 
-        Eigen::VectorXf Residuals(6); // 6 x 1
+        MatrixX Hessian(6, 6); // 6 x 3 x 3 x 6 -> 6 x 6
 
-        Hessian = Eigen::MatrixXf::Zero(6, 6);
-        Residuals = Eigen::VectorXf::Zero(6);
+        VectorX Error(1);     // 1 x 1
+        VectorX Residuals(6); // 6 x 1
 
-        parameters.setConstant(6, 0);
-        float accelerator = 1;
-
-        for (int i = 0; i < n_pts; i++)
-        {
-            int src_index = correspondences[i].index_query;
-            int tgt_index = correspondences[i].index_match;
-            //  compute jacobian
-            // PCL_DEBUG("Computing Jacobian...");
-            errorAndJacobian(parameters, cloud_src.points[src_index], cloud_tgt[tgt_index], Error, Jacobian);
-
-            Hessian += Jacobian.transpose() * Jacobian;
-            Residuals += Jacobian.transpose() * Error;
-        }
-
-        parameters -= Hessian.colPivHouseholderQr().solve(Residuals);
-        PCL_DEBUG("GN Solver : %f %f %f %f %f %f\n", parameters[0], parameters[1], parameters[2], parameters[3], parameters[4], parameters[5]);
-
-        // } // for end
-
-        Eigen::AngleAxisf rollAngle(parameters(3), Eigen::Vector3f::UnitX());
-        Eigen::AngleAxisf pitchAngle(parameters(4), Eigen::Vector3f::UnitY());
-        Eigen::AngleAxisf yawAngle(parameters(5), Eigen::Vector3f::UnitZ());
-
-        Eigen::Quaternionf q = rollAngle * pitchAngle * yawAngle;
-
-        Eigen::Matrix3f rotMatrix = q.matrix();
-
-        transformation_matrix << rotMatrix(0, 0), rotMatrix(0, 1), rotMatrix(0, 2), parameters(0),
-            rotMatrix(1, 0), rotMatrix(1, 1), rotMatrix(1, 2), parameters(1),
-            rotMatrix(2, 0), rotMatrix(2, 1), rotMatrix(2, 2), parameters(2),
-            0, 0, 0, 1;
-    }
-
-private:
-    inline void errorAndJacobian(const Eigen::VectorXf &parameters, const PointSource &src_pt, const PointTarget &tgt_pt, Eigen::VectorXf &error, Eigen::MatrixXf &Jacobian) const
-
-    {
-
-        Eigen::MatrixXf Jacobian_(3, 6);
-        // Translation
-        Eigen::Vector3f translation(3);
-
-        translation(0) = parameters(0);
-        translation(1) = parameters(1);
-        translation(2) = parameters(2);
-
-        float c_ax = cos(parameters(3));
-        float s_ax = sin(parameters(3));
-
-        float c_ay = cos(parameters(4));
-        float s_ay = sin(parameters(4));
-
-        float c_az = cos(parameters(5));
-        float s_az = sin(parameters(5));
+        Hessian.setZero();
+        Residuals.setZero();
 
         // Rotations
-        Eigen::Matrix3f Rx;
-        Eigen::Matrix3f Ry;
-        Eigen::Matrix3f Rz;
+        Matrix3 Rx;
+        Matrix3 Ry;
+        Matrix3 Rz;
 
         // Derivatives
-        Eigen::Matrix3f Rx_;
-        Eigen::Matrix3f Ry_;
-        Eigen::Matrix3f Rz_;
+        Matrix3 Rx_;
+        Matrix3 Ry_;
+        Matrix3 Rz_;
 
-        Rx << 1, 0, 0,
-            0, c_ax, -s_ax,
-            0, s_ax, c_ax;
+        Matrix3 Rxyz;
+        Matrix3 Rx_yz;
+        Matrix3 Rxy_z;
+        Matrix3 Rxyz_;
 
-        Ry << c_ay, 0, s_ay,
-            0, 1, 0,
-            -s_ay, 0, c_ay;
+        Vector3 translation(3);
 
-        Rz << c_az, -s_az, 0,
-            s_az, c_az, 0,
-            0, 0, 1;
+        parameters.setConstant(6, 0); // Init
+        for (int i = 0; i < 3; ++i)
+        {
 
-        Rx_ << 1, 0, 0,
-            0, -s_ax, -c_ax,
-            0, c_ax, -s_ax;
+            MatScalar c_ax = cos(parameters(3));
+            MatScalar s_ax = sin(parameters(3));
 
-        Ry_ << -s_ay, 0, c_ay,
-            0, 1, 0,
-            -c_ay, 0, -s_ay;
+            MatScalar c_ay = cos(parameters(4));
+            MatScalar s_ay = sin(parameters(4));
 
-        Rz_ << -s_az, -c_az, 0,
-            c_az, -s_az, 0,
-            0, 0, 1;
+            MatScalar c_az = cos(parameters(5));
+            MatScalar s_az = sin(parameters(5));
 
-        // 3x1
+            Rx << 1, 0, 0,
+                0, c_ax, -s_ax,
+                0, s_ax, c_ax;
 
-        // Point 2 Point
-        // error = Rx * Ry * Rz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap(); //p2p
-        // Jacobian.block<3, 3>(0, 0) = Eigen::MatrixXf::Identity(3, 3);
-        // Jacobian.block<3, 1>(0, 3) = Rx_ * Ry * Rz * src_pt.getVector3fMap();
-        // Jacobian.block<3, 1>(0, 4) = Rx * Ry_ * Rz * src_pt.getVector3fMap();
-        // Jacobian.block<3, 1>(0, 5) = Rx * Ry * Rz_ * src_pt.getVector3fMap();
+            Ry << c_ay, 0, s_ay,
+                0, 1, 0,
+                -s_ay, 0, c_ay;
 
-        error[0] = (Rx * Ry * Rz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap()).dot(tgt_pt.getNormalVector3fMap()); //p2p
-        Jacobian_.block<3, 3>(0, 0) = Eigen::MatrixXf::Identity(3, 3);
-        Jacobian_.block<3, 1>(0, 3) = Rx_ * Ry * Rz * src_pt.getVector3fMap();
-        Jacobian_.block<3, 1>(0, 4) = Rx * Ry_ * Rz * src_pt.getVector3fMap();
-        Jacobian_.block<3, 1>(0, 5) = Rx * Ry * Rz_ * src_pt.getVector3fMap();
+            Rz << c_az, -s_az, 0,
+                s_az, c_az, 0,
+                0, 0, 1;
 
-        Jacobian = Jacobian_.block<1, 6>(0, 0) * tgt_pt.normal_x +
-                   Jacobian_.block<1, 6>(1, 0) * tgt_pt.normal_y +
-                   Jacobian_.block<1, 6>(2, 0) * tgt_pt.normal_z;
+            Rx_ << 1, 0, 0,
+                0, -s_ax, -c_ax,
+                0, c_ax, -s_ax;
+
+            Ry_ << -s_ay, 0, c_ay,
+                0, 1, 0,
+                -c_ay, 0, -s_ay;
+
+            Rz_ << -s_az, -c_az, 0,
+                c_az, -s_az, 0,
+                0, 0, 1;
+
+            
+            translation(0) = parameters(0);
+            translation(1) = parameters(1);
+            translation(2) = parameters(2);
+
+            Rxyz = Rx * Ry * Rz;
+            Rx_yz = Rx_ * Ry * Rz;
+            Rxy_z = Rx * Ry_ * Rz;
+            Rxyz_ = Rx * Ry * Rz_;
+
+            for (int i = 0; i < n_pts; i++)
+            {
+                const int src_index = correspondences[i].index_query;
+                const int tgt_index = correspondences[i].index_match;
+
+                const PointSource &src_pt = cloud_src.points[src_index];
+                const PointSource &tgt_pt = cloud_tgt.points[tgt_index];
+                //  compute jacobian
+
+                Error[0] = (Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap()).dot(tgt_pt.getNormalVector3fMap()); //p2p
+                Jacobian_.block<3, 3>(0, 0) = Eigen::MatrixXf::Identity(3, 3);
+                Jacobian_.block<3, 1>(0, 3) = Rx_yz * src_pt.getVector3fMap();
+                Jacobian_.block<3, 1>(0, 4) = Rxy_z * src_pt.getVector3fMap();
+                Jacobian_.block<3, 1>(0, 5) = Rxyz_ * src_pt.getVector3fMap();
+
+                Jacobian = Jacobian_.block<1, 6>(0, 0) * tgt_pt.normal_x +
+                           Jacobian_.block<1, 6>(1, 0) * tgt_pt.normal_y +
+                           Jacobian_.block<1, 6>(2, 0) * tgt_pt.normal_z;
+
+                Hessian += Jacobian.transpose() * Jacobian;
+                Residuals += Jacobian.transpose() * Error;
+            }
+
+            parameters -= Hessian.colPivHouseholderQr().solve(Residuals);
+
+        } // Gauss Newton Iteration for
+
+        PCL_DEBUG("GN  Normals Solver : %f %f %f %f %f %f\n", parameters[0], parameters[1], parameters[2], parameters[3], parameters[4], parameters[5]);
+        warp_point_->setParam(parameters);
+        transformation_matrix = warp_point_->getTransform();
     }
+
+protected:
+    typename WarpPointRigid<PointSource, PointTarget, MatScalar>::Ptr warp_point_;
+    const MyTransformNormals *estimator_;
 };
+
+// error[0] = (Rx * Ry * Rz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap()).dot(tgt_pt.getNormalVector3fMap()); //p2p
+// Jacobian_.block<3, 3>(0, 0) = Eigen::MatrixXf::Identity(3, 3);
+// Jacobian_.block<3, 1>(0, 3) = Rx_ * Ry * Rz * src_pt.getVector3fMap();
+// Jacobian_.block<3, 1>(0, 4) = Rx * Ry_ * Rz * src_pt.getVector3fMap();
+// Jacobian_.block<3, 1>(0, 5) = Rx * Ry * Rz_ * src_pt.getVector3fMap();
+
+// Jacobian = Jacobian_.block<1, 6>(0, 0) * tgt_pt.normal_x +
+//            Jacobian_.block<1, 6>(1, 0) * tgt_pt.normal_y +
+//            Jacobian_.block<1, 6>(2, 0) * tgt_pt.normal_z;

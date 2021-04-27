@@ -50,12 +50,15 @@ protected:
 int main(int argc, char **argv)
 {
 
-    // pcl::console::setVerbosityLevel(pcl::console::VERBOSITY_LEVEL::L_VERBOSE);
+    pcl::console::setVerbosityLevel(pcl::console::VERBOSITY_LEVEL::L_VERBOSE);
 
     PCL_DEBUG("DEBUG ON!");
 
     PointCloudT::Ptr source(new PointCloudT);
     PointCloudT::Ptr target(new PointCloudT);
+
+
+
 
     if (argc < 3)
     {
@@ -137,13 +140,13 @@ int main(int argc, char **argv)
     PCL_INFO("Alignment time: Normals LLS %f\n", (float)elapsed / CLOCKS_PER_SEC);
     PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
-    start = clock();
-    transform_.reset(new pcl::registration::TransformationEstimationDualQuaternion<PointT, PointT>);
-    reg.setTransformationEstimation(transform_);
-    reg.align(*aligned);
-    elapsed = clock() - start;
-    PCL_INFO("Alignment time: Dual Quat %f\n", (float)elapsed / CLOCKS_PER_SEC);
-    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+    // start = clock();
+    // transform_.reset(new pcl::registration::TransformationEstimationDualQuaternion<PointT, PointT>);
+    // reg.setTransformationEstimation(transform_);
+    // reg.align(*aligned);
+    // elapsed = clock() - start;
+    // PCL_INFO("Alignment time: Dual Quat %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    // PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
     start = clock();
     transform_.reset(new MyTransformNormals<PointT, PointT>);

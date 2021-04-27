@@ -1,202 +1,189 @@
-#include <iostream>
-#include <ctime>
+#pragma once
 
-#include <pcl/io/pcd_io.h>
-#include <pcl/registration/gicp.h>
-#include <pcl/registration/icp.h>
-#include <pcl/registration/transformation_estimation_2D.h>
-#include <pcl/registration/icp_nl.h>
-#include <pcl/registration/ndt.h>
+#include <pcl/registration/transformation_estimation.h>
+#include <pcl/registration/warp_point_rigid_6d.h>
+#include <pcl/console/print.h>
 
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/common/centroid.h>
-#include <pcl/filters/statistical_outlier_removal.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/console/parse.h>
+//idea for Feature-ICP usage;
+// icp.setSourceEdges
+// icp.setTargetEdges
+// icp.setSourcePlanes
+// icp.setTargetPlanes
+// icp.setTransformationEstimation(edge p2l + plane p2p)
 
-using PointT = pcl::PointXYZINormal;
-using PointCloudT = pcl::PointCloud<PointT>;
+// mt trabalho!
 
-// with normals
-// using PointT = pcl::PointXYZINormal;
-// using PointCloudT = pcl::PointCloud<PointT>;
-//
+using namespace pcl::registration;
 
-using ICP = pcl::IterativeClosestPoint<PointT, PointT>;
-using NL_ICP = pcl::IterativeClosestPointNonLinear<PointT, PointT>;
-using GICP = pcl::GeneralizedIterativeClosestPoint<PointT, PointT>;
-using NDT = pcl::NormalDistributionsTransform<PointT, PointT>;
-
-pcl::Registration<PointT, PointT>::Ptr Registration;
-
-// TODO ALGORITHMS
-// TRIMMING
-// POINT TO LINE (Overriding and using numerical diff from eigen)
-
-using namespace std::chrono;
-
-void printUsage()
+template <typename PointSource, typename PointTarget, typename MatScalar = float>
+class MyTransformNormals : public TransformationEstimation<PointSource, PointTarget, MatScalar>
 {
-    std::cout << "Usage : registration_normals [target.pcd] [source.pcd] [voxel res] [iterations] [maxcorr dist]" << std::endl;
-}
+public:
+    using Ptr = pcl::shared_ptr<MyTransformNormals<PointSource, PointTarget, MatScalar>>;
+    using ConstPtr = pcl::shared_ptr<const MyTransformNormals<PointSource, PointTarget, MatScalar>>;
+    using VectorX = Eigen::Matrix<MatScalar, Eigen::Dynamic, 1>;
+    using MatrixX = Eigen::Matrix<MatScalar, Eigen::Dynamic, Eigen::Dynamic>;
+    using Vector3 = Eigen::Matrix<MatScalar, 3, 1>;
+    using Vector4 = Eigen::Matrix<MatScalar, 4, 1>;
+    using Matrix3 = Eigen::Matrix<MatScalar, 3, 3>;
+    using Matrix4 = typename TransformationEstimation<PointSource, PointTarget, MatScalar>::Matrix4;
 
-int main(int argc, char **argv)
-{
-
-    if (argc < 6)
+    MyTransformNormals()
     {
-        printUsage();
-        exit(-1);
+        warp_point_.reset(new WarpPointRigid6D<PointSource, PointTarget, MatScalar>);
+    }
+    ~MyTransformNormals() {}
+
+    inline void
+    estimateRigidTransformation(
+        const pcl::PointCloud<PointSource> &cloud_src,
+        const pcl::PointCloud<PointTarget> &cloud_tgt,
+        Matrix4 &transformation_matrix) const override
+    {
+        PCL_INFO("call 1");
     }
 
-    PointCloudT::Ptr cloud_source = pcl::make_shared<PointCloudT>();  //Voxel
-    PointCloudT::Ptr cloud_source_ = pcl::make_shared<PointCloudT>(); //Raw
-
-    PointCloudT::Ptr cloud_target = pcl::make_shared<PointCloudT>();  // Voxel
-    PointCloudT::Ptr cloud_target_ = pcl::make_shared<PointCloudT>(); //Raw
-
-    bool generateOutput = false;
-
-    std::string output_name;
-    if (pcl::console::parse_argument(argc, argv, "-o", output_name) != -1)
-        generateOutput = true;
-
-    if (pcl::io::loadPCDFile<PointT>(argv[1], *cloud_target_) == -1) //* load the file
+    void
+    estimateRigidTransformation(
+        const pcl::PointCloud<PointSource> &cloud_src,
+        const std::vector<int> &indices_src,
+        const pcl::PointCloud<PointTarget> &cloud_tgt,
+        Matrix4 &transformation_matrix) const override
     {
-        PCL_ERROR("Couldn't read file model \n");
-        return (-1);
+        PCL_INFO("call 2");
     }
 
-    if (pcl::io::loadPCDFile<PointT>(argv[2], *cloud_source_) == -1) //* load the file
+    void
+    estimateRigidTransformation(
+        const pcl::PointCloud<PointSource> &cloud_src,
+        const std::vector<int> &indices_src,
+        const pcl::PointCloud<PointTarget> &cloud_tgt,
+        const std::vector<int> &indices_tgt,
+        Matrix4 &transformation_matrix) const override
     {
-        PCL_ERROR("Couldn't read file shape \n");
-        return (-1);
+        PCL_INFO("call 3");
     }
 
-    // Prefiltering
-    pcl::PassThrough<PointT> pass_through;
-    // pass_through.setInputCloud(input_clzzz)
-    pass_through.setInputCloud(cloud_source_);
-    pass_through.setFilterFieldName("x");
-    pass_through.setFilterLimits(0, 0.05); // remove weird points close to origin
-    pass_through.setNegative(true);
-    pass_through.filter(*cloud_source_);
-
-    pass_through.setInputCloud(cloud_target_);
-    pass_through.setFilterFieldName("x");
-    pass_through.setFilterLimits(0, 0.05); // remove weird points close to origin
-    pass_through.setNegative(true);
-    pass_through.filter(*cloud_target_);
-
-    // Parameters
-    float res = atof(argv[3]);
-    int maxit = atoi(argv[4]);
-    float maxCorr = atof(argv[5]);
-
-    std::cout << "Res: " << res << std::endl;
-    std::cout << "maxit: " << maxit << std::endl;
-    std::cout << "maxCorr: " << maxCorr << std::endl;
-
-    if (res != 0.0)
+    // Gauss newton
+    void estimateRigidTransformation(
+        const pcl::PointCloud<PointSource> &cloud_src,
+        const pcl::PointCloud<PointTarget> &cloud_tgt,
+        const pcl::Correspondences &correspondences,
+        Matrix4 &transformation_matrix) const
     {
-        pcl::VoxelGrid<PointT> voxel;
-        voxel.setLeafSize(res, res, res);
-        voxel.setInputCloud(cloud_target_);
-        voxel.filter(*cloud_target);
-        voxel.setInputCloud(cloud_source_);
-        voxel.filter(*cloud_source);
-    }
-    else
-    {
-        *cloud_target = *cloud_target_;
-        *cloud_source = *cloud_source_;
-    }
+        size_t n_pts = correspondences.size();
+        PCL_DEBUG("Correspondences: %d\n", n_pts);
+        // Parameters : tx, ty, tz, ax, ay, az
+        VectorX parameters(6);
 
-    // PointCloudT::Ptr cloud_source_normals (new PointCloudT);
-    // PointCloudT::Ptr cloud_target_normals (new PointCloudT);
+        Eigen::MatrixXf Jacobian(3, 6); // 3 x 6
 
-    PCL_INFO("Estimating normals...");
-    pcl::NormalEstimation<PointT, PointT> ne;
-    // ne.setInputCloud(cloud_source);
-    // ne.setKSearch(10);
-    // ne.compute(*cloud_source_normals);
+        MatrixX Hessian(6, 6); // 6 x 3 x 3 x 6 -> 6 x 6
 
-    ne.setInputCloud(cloud_target);
-    ne.setKSearch(10);
-    ne.compute(*cloud_target);
+        VectorX Error(3);     // 3 x 1
+        VectorX Residuals(6); // 6 x 1
 
-    // pcl::copyPointCloud<PointInT,PointT>(*cloud_source,*cloud_source_normals);
-    // pcl::copyPointCloud<PointT,PointT>(*cloud_target,*cloud_target_normals);
+        Hessian.setZero();
+        Residuals.setZero();
 
-    // pcl::concatenateFields(*cloud_source, *cloud_source_normals, *cloud_source_normals);
-    // pcl::concatenateFields(*cloud_target, *cloud_target_normals, *cloud_target_normals);
+        // Rotations
+        Matrix3 Rx;
+        Matrix3 Ry;
+        Matrix3 Rz;
 
-    pcl::visualization::PCLVisualizer viewer("Viewer");
+        // Derivatives
+        Matrix3 Rx_;
+        Matrix3 Ry_;
+        Matrix3 Rz_;
 
-    std::cout << "Checking points" << std::endl;
-    for (int i = 0; i < 3; ++i)
-    {
-        std::cout << "tgt: " << cloud_target->points[i].x << "| n: " << cloud_target->points[i].normal_x << std::endl;
-    }
+        Matrix3 Rxyz;
+        Matrix3 Rx_yz;
+        Matrix3 Rxy_z;
+        Matrix3 Rxyz_;
 
-    // PointCloudIT::Ptr aligned(new PointCloudIT);
-    // pcl::IterativeClosestPoint<PointInT,PointInT> nicp;
-    // nicp.setInputSource(cloud_source);
-    // nicp.setInputTarget(cloud_target);
-    // 0.00867128
+        parameters.setConstant(6, 0); // Init
+        for (int i = 0; i < 2; ++i)
+        {
 
-    clock_t start = clock();
-    PointCloudT::Ptr aligned(new PointCloudT);
-    // pcl::IterativeClosestPoint<PointT,PointT> nicp; //Compute time: 0.070489   0.000837917
+            MatScalar c_ax = cos(parameters(3));
+            MatScalar s_ax = sin(parameters(3));
 
-    pcl::IterativeClosestPoint<PointT, PointT> nicp; //Compute time: 0.015287  0.000837917
-    // pcl::GeneralizedIterativeClosestPoint<PointT,PointT> nicp;
-    // nicp.setInputSource(cloud_source_normals);
-    nicp.setInputSource(cloud_source);
-    nicp.setInputTarget(cloud_target);
-    nicp.setUseReciprocalCorrespondences(false);
-    pcl::registration::TransformationEstimationPointToPlaneLLS<PointT, PointT>::Ptr trans_lls(new pcl::registration::TransformationEstimationPointToPlaneLLS<PointT, PointT>);
-    nicp.setTransformationEstimation(trans_lls);
+            MatScalar c_ay = cos(parameters(4));
+            MatScalar s_ay = sin(parameters(4));
 
-    nicp.setMaximumIterations(maxit);
-    nicp.setMaxCorrespondenceDistance(maxCorr);
-    nicp.setTransformationEpsilon(1e-8);
-    nicp.align(*aligned);
-    clock_t end = clock();
+            MatScalar c_az = cos(parameters(5));
+            MatScalar s_az = sin(parameters(5));
 
-    std::cout << "Compute time: " << (float)(end - start) / CLOCKS_PER_SEC << std::endl;
+            Rx << 1, 0, 0,
+                0, c_ax, -s_ax,
+                0, s_ax, c_ax;
 
-    std::cout << nicp.getFitnessScore() << std::endl;
+            Ry << c_ay, 0, s_ay,
+                0, 1, 0,
+                -s_ay, 0, c_ay;
 
-    int vp0, vp1;
-    viewer.createViewPort(0, 0, 0.5, 1, vp0);
-    viewer.createViewPort(0.5, 0, 1, 1, vp1);
+            Rz << c_az, -s_az, 0,
+                s_az, c_az, 0,
+                0, 0, 1;
 
-    viewer.addPointCloud<PointT>(cloud_target, "tgt", 0);
-    viewer.addPointCloudNormals<PointT>(cloud_target, 10, 0.1, "tgt_normals", 0);
+            Rx_ << 1, 0, 0,
+                0, -s_ax, -c_ax,
+                0, c_ax, -s_ax;
 
-    viewer.addPointCloud<PointT>(cloud_source, "src", vp0);
-    viewer.addPointCloudNormals<PointT>(cloud_source, 10, 0.1, "src_normals", vp0);
+            Ry_ << -s_ay, 0, c_ay,
+                0, 1, 0,
+                -c_ay, 0, -s_ay;
 
-    viewer.addPointCloud<PointT>(aligned, "aln", vp1);
+            Rz_ << -s_az, -c_az, 0,
+                c_az, -s_az, 0,
+                0, 0, 1;
 
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "src");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "tgt");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "aln");
+            Vector3 translation(3);
+            translation(0) = parameters(0);
+            translation(1) = parameters(1);
+            translation(2) = parameters(2);
 
-    // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "tgt_normals");
+            Rxyz = Rx*Ry*Rz;
+            Rx_yz = Rx_ * Ry * Rz;
+            Rxy_z = Rx * Ry_ * Rz;
+            Rxyz_ = Rx * Ry * Rz_;
 
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "src");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "tgt");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "aln");
+            for (int i = 0; i < n_pts; i++)
+            {
+                const int src_index = correspondences[i].index_query;
+                const int tgt_index = correspondences[i].index_match;
 
+                const PointSource &src_pt = cloud_src.points[src_index];
+                const PointSource &tgt_pt = cloud_tgt.points[tgt_index];
+                //  compute jacobian
 
-    while (!viewer.wasStopped())
-    {
-        viewer.spin();
+                Error = Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap(); //p2p
+                Jacobian.block<3, 3>(0, 0) = MatrixX::Identity(3, 3);
+                Jacobian.block<3, 1>(0, 3) = Rx_yz * src_pt.getVector3fMap();
+                Jacobian.block<3, 1>(0, 4) = Rxy_z * src_pt.getVector3fMap();
+                Jacobian.block<3, 1>(0, 5) = Rxyz_ * src_pt.getVector3fMap();
+
+                // Linearized
+                // Error = src_pt.getVector3fMap() - tgt_pt.getVector3fMap(); //p2p
+                // Jacobian.block<3, 3>(0, 0) = MatrixX::Identity(3, 3);
+                // Jacobian.block<3, 1>(0, 3) = Vector3(src_pt.x, -src_pt.z, src_pt.y);
+                // Jacobian.block<3, 1>(0, 4) = Vector3(src_pt.z, src_pt.y, -src_pt.x);
+                // Jacobian.block<3, 1>(0, 5) = Vector3(-src_pt.y, src_pt.x, src_pt.z);
+
+                Hessian += Jacobian.transpose() * Jacobian;
+                Residuals += Jacobian.transpose() * Error;
+            }
+
+            parameters -= Hessian.colPivHouseholderQr().solve(Residuals);
+
+        } // Gauss Newton Iteration for
+
+        PCL_DEBUG("GN Solver : %f %f %f %f %f %f\n", parameters[0], parameters[1], parameters[2], parameters[3], parameters[4], parameters[5]);
+        warp_point_->setParam(parameters);
+        transformation_matrix = warp_point_->getTransform();
     }
 
-    return 0;
-}
+protected:
+    typename WarpPointRigid<PointSource, PointTarget, MatScalar>::Ptr warp_point_;
+    const MyTransform *estimator_;
+};
