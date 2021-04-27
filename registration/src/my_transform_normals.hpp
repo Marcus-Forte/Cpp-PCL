@@ -76,12 +76,12 @@ public:
         // Parameters : tx, ty, tz, ax, ay, az
         VectorX parameters(6);
 
-        Eigen::MatrixXf Jacobian(1, 6); // 3 x 6
-        Eigen::MatrixXf Jacobian_(3, 6); // 3 x 6
+        // Eigen::MatrixXf Jacobian(1, 6); // 3 x 6
+        Eigen::MatrixXf Jacobian(3, 6); // 3 x 6
 
         MatrixX Hessian(6, 6); // 6 x 3 x 3 x 6 -> 6 x 6
 
-        VectorX Error(1);     // 1 x 1
+        VectorX Error(3);     // 1 x 1
         VectorX Residuals(6); // 6 x 1
 
         Hessian.setZero();
@@ -105,7 +105,7 @@ public:
         Vector3 translation(3);
 
         parameters.setConstant(6, 0); // Init
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 5; ++i)
         {
 
             MatScalar c_ax = cos(parameters(3));
@@ -160,15 +160,12 @@ public:
                 const PointSource &tgt_pt = cloud_tgt.points[tgt_index];
                 //  compute jacobian
 
-                Error[0] = (Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap()).dot(tgt_pt.getNormalVector3fMap()); //p2p
-                Jacobian_.block<3, 3>(0, 0) = Eigen::MatrixXf::Identity(3, 3);
-                Jacobian_.block<3, 1>(0, 3) = Rx_yz * src_pt.getVector3fMap();
-                Jacobian_.block<3, 1>(0, 4) = Rxy_z * src_pt.getVector3fMap();
-                Jacobian_.block<3, 1>(0, 5) = Rxyz_ * src_pt.getVector3fMap();
-
-                Jacobian = Jacobian_.block<1, 6>(0, 0) * tgt_pt.normal_x +
-                           Jacobian_.block<1, 6>(1, 0) * tgt_pt.normal_y +
-                           Jacobian_.block<1, 6>(2, 0) * tgt_pt.normal_z;
+                float dist_to_plane = (Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap()).dot(tgt_pt.getNormalVector3fMap()); //p2p
+                Error = tgt_pt.getNormalVector3fMap()*dist_to_plane; 
+                Jacobian.block<3, 3>(0, 0) = Eigen::MatrixXf::Identity(3, 3);
+                Jacobian.block<3, 1>(0, 3) = Rx_yz * src_pt.getVector3fMap();
+                Jacobian.block<3, 1>(0, 4) = Rxy_z * src_pt.getVector3fMap();
+                Jacobian.block<3, 1>(0, 5) = Rxyz_ * src_pt.getVector3fMap();
 
                 Hessian += Jacobian.transpose() * Jacobian;
                 Residuals += Jacobian.transpose() * Error;

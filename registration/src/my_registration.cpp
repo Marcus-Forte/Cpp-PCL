@@ -50,7 +50,7 @@ protected:
 int main(int argc, char **argv)
 {
 
-    pcl::console::setVerbosityLevel(pcl::console::VERBOSITY_LEVEL::L_VERBOSE);
+    // pcl::console::setVerbosityLevel(pcl::console::VERBOSITY_LEVEL::L_VERBOSE);
 
     PCL_DEBUG("DEBUG ON!");
 
