@@ -1,115 +1,125 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/point_types.h>
+#include <pcl/PCLPointCloud2.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/filters/random_sample.h>
 #include <algorithm>
 
 #include <pcl/visualization/pcl_visualizer.h>
-
+#include <ctime>
 using PointCloudT = pcl::PointCloud<pcl::PointXYZ>;
-
-bool compareX(const pcl::PointXYZ &p1, const pcl::PointXYZ &p2)
-{
-    if (p1.y > p2.y)
-        return true;
-
-    return false;
-}
 
 void printUsage()
 {
-    std::cout << "Usage : normals [target.pcd] [neighboors]" << std::endl;
+    std::cout << "Usage : normals [target.pcd] [neighboors] [random sampling factor]" << std::endl;
 }
 
 int main(int argc, char **argv)
 {
 
-    if (argc < 3)
+    pcl::console::setVerbosityLevel(pcl::console::L_VERBOSE);
+    
+    if (argc < 4)
     {
         printUsage();
         exit(-1);
     }
 
-    PointCloudT::Ptr cloud = pcl::make_shared<PointCloudT>();
+    pcl::PCLPointCloud2::Ptr cloud_blob(new pcl::PCLPointCloud2);
 
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(argv[1], *cloud) == -1) //* load the file
+    if (pcl::io::loadPCDFile(argv[1], *cloud_blob) == -1) //* load the file
     {
         PCL_ERROR("Couldn't read file model \n");
         return (-1);
     }
-    // Sort X
 
-    std::sort(cloud->points.begin(), cloud->points.end(), compareX);
+    int kN = atoi(argv[2]);
 
-    int KSearch = atoi(argv[2]);
-
-    pcl::visualization::PCLVisualizer viewer("Viewer");
-    viewer.addCoordinateSystem(1, "ref");
-    int count = 0;
-
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree = pcl::make_shared<pcl::search::KdTree<pcl::PointXYZ>>();
-    pcl::PointCloud<pcl::PointXYZ>::Ptr Nearest_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    tree->setInputCloud(cloud);
-
-    pcl::ModelCoefficients line;
-    pcl::SACSegmentation<pcl::PointXYZ> seg;
-    pcl::IndicesPtr indices(new pcl::Indices);
-    pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
-    std::vector<float> pointNKNSquaredDistance(KSearch);
-
-    int rest = cloud->size();
-
-    while (rest)
+    for (const auto &field : cloud_blob->fields)
     {
-        std::cout << "Rest = " << rest << std::endl;
-        tree->nearestKSearch(cloud->points[0], KSearch, *indices, pointNKNSquaredDistance);
-        pcl::ExtractIndices<pcl::PointXYZ> extractor;
-        extractor.setInputCloud(cloud);
-        extractor.setIndices(indices);
-        extractor.filter(*Nearest_cloud);
-        extractor.setNegative(true);
-        extractor.filter(*cloud);
-        rest = cloud->size();
-
-        std::cout << "Computing Line..." << std::endl;
-        seg.setOptimizeCoefficients(true);
-        seg.setInputCloud(Nearest_cloud);
-        seg.setModelType(pcl::SACMODEL_LINE);
-        seg.setMethodType(pcl::SAC_RANSAC);
-        seg.setMaxIterations(200);
-        seg.setDistanceThreshold(0.1);
-        seg.segment(*inliers, line);
-
-        pcl::PointCloud<pcl::PointXYZ>::Ptr inliner_clouds = pcl::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
-        extractor.setInputCloud(Nearest_cloud);
-        extractor.setIndices(inliers);
-        extractor.filter(*inliner_clouds);
-
-        
-        // viewer.addPointCloud(Nearest_cloud, "cloud" + std::to_string(count++));
-        viewer.addPointCloud(inliner_clouds, "cloud" + std::to_string(count++));
-        viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,1,0,0,"cloud" + std::to_string(count-1));
-        viewer.spinOnce(100, true);
+        PCL_INFO("f: %s\n", field.name.c_str());
     }
 
-    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    clock_t start,elapsed;
 
-    pcl::PointCloud<pcl::Normal>::Ptr normals = pcl::make_shared<pcl::PointCloud<pcl::Normal>>();
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud(new pcl::PointCloud<pcl::PointNormal>);
+    pcl::PointCloud<pcl::PointNormal>::Ptr random_samples(new pcl::PointCloud<pcl::PointNormal>);
 
+    pcl::fromPCLPointCloud2(*cloud_blob, *cloud);
+
+    pcl::search::KdTree<pcl::PointNormal>::Ptr tree (new pcl::search::KdTree<pcl::PointNormal>);
+    tree->setInputCloud(cloud);
+
+    pcl::RandomSample<pcl::PointNormal> ransamp;
+    ransamp.setInputCloud(cloud);
+    int samples = atof(argv[3]) * cloud->size();
+    ransamp.setSample(samples);
+    ransamp.filter(*random_samples);
+
+    PCL_INFO("Coputing Normals on %d random samples...\n",samples);
+    
+    //for each point, compute its normal
+    pcl::Indices nearestK(kN);
+    std::vector<float> unused(kN);
+    start = clock();
+    for (auto &it : random_samples->points)
+    {
+
+        tree->nearestKSearch(it, kN, nearestK, unused);
+        Eigen::Vector4f normal;
+        float curvature;
+        pcl::computePointNormal(*cloud, nearestK, normal, curvature);
+
+        it.normal_x = normal[0];
+        it.normal_y = normal[1];
+        it.normal_z = normal[2];
+
+        // PCL_INFO("nx : %f ny: %f nz: %f\n", normal[0], normal[1], normal[2]);
+    }
+
+    elapsed = clock() - start;
+    PCL_INFO("Random Sampling normal computation time: %f\n",(float)elapsed / CLOCKS_PER_SEC);
+
+    PCL_INFO("Coputing Normals on full cloud : %d pts...\n",cloud->size());
+    start = clock();
+    pcl::NormalEstimation<pcl::PointNormal,pcl::PointNormal> ne;
     ne.setInputCloud(cloud);
-    ne.setKSearch(KSearch);
-    ne.compute(*normals);
+    ne.setSearchMethod(tree);
+    ne.setKSearch(kN);
+    ne.compute(*cloud);
+    elapsed = clock() - start;
+    PCL_INFO("Computation time: %f\n",(float)elapsed / CLOCKS_PER_SEC);
 
-    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals = pcl::make_shared<pcl::PointCloud<pcl::PointNormal>>();
+    pcl::visualization::PCLVisualizer viewer;
 
-    pcl::concatenateFields(*cloud, *normals, *cloud_normals);
+    // pcl::PCLPointCloud2Ptr cloud_blob_normals (new pcl::PCLPointCloud2);
+    // pcl::toPCLPointCloud2<pcl::PointNormal>(*cloud_normals, *cloud_blob_normals);
 
-    viewer.addPointCloudNormals<pcl::PointNormal>(cloud_normals, 10, 0.1, "cloud");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "cloud");
+    // pcl::visualization::PointCloudColorHandler<pcl::PCLPointCloud2>::Ptr color;
+
+    // for (const auto &it : cloud_blob_normals->fields)
+    // {
+
+    //     color.reset(new pcl::visualization::PointCloudColorHandlerGenericField<pcl::PCLPointCloud2>(cloud_blob_normals, it.name));
+    //     Eigen::Vector4f origin = Eigen::Vector4f::Zero();
+    //     Eigen::Quaternionf orientation = Eigen::Quaternionf::Identity();
+
+    //     viewer.addPointCloud(cloud_blob_normals,color,origin,orientation,"cloud");
+    // }
+
+    viewer.addPointCloud<pcl::PointNormal>(cloud, "cloud");
+    viewer.addPointCloud<pcl::PointNormal>(random_samples, "random");
+    viewer.addPointCloudNormals<pcl::PointNormal>(random_samples, 1, 0.06, "normals"); // normals
+
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "normals");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "random");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "random");
 
     while (!viewer.wasStopped())
     {
         viewer.spin();
     }
+
+    return 0;
 }

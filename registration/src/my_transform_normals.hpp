@@ -105,7 +105,7 @@ public:
         Vector3 translation(3);
 
         parameters.setConstant(6, 0); // Init
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 3; ++i)
         {
 
             MatScalar c_ax = cos(parameters(3));
