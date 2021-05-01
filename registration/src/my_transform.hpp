@@ -102,7 +102,7 @@ public:
         Matrix3 Rxyz_;
 
         parameters.setConstant(6, 0); // Init
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 30; ++i)
         {
 
             MatScalar c_ax = cos(parameters(3));
@@ -143,10 +143,10 @@ public:
             translation(1) = parameters(1);
             translation(2) = parameters(2);
 
-            Rxyz = Rx*Ry*Rz;
-            Rx_yz = Rx_ * Ry * Rz;
-            Rxy_z = Rx * Ry_ * Rz;
-            Rxyz_ = Rx * Ry * Rz_;
+            Rxyz = Rz * Ry * Rx;
+            Rx_yz = Rz * Ry * Rx_;
+            Rxy_z = Rz * Ry_ * Rx;
+            Rxyz_ = Rz_ * Ry * Rx;
 
             for (int i = 0; i < n_pts; i++)
             {
@@ -158,23 +158,30 @@ public:
                 //  compute jacobian
 
                 Error = Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap(); //p2p
+
+                // float error = sqrt(Error[0] * Error[0] + Error[1] * Error[1] + Error[2] * Error[2]);
                 Jacobian.block<3, 3>(0, 0) = MatrixX::Identity(3, 3);
                 Jacobian.block<3, 1>(0, 3) = Rx_yz * src_pt.getVector3fMap();
                 Jacobian.block<3, 1>(0, 4) = Rxy_z * src_pt.getVector3fMap();
                 Jacobian.block<3, 1>(0, 5) = Rxyz_ * src_pt.getVector3fMap();
+                // Vector3 jac_alpha = Rx_yz * src_pt.getVector3fMap();
+                // Vector3 jac_beta = Rxy_z * src_pt.getVector3fMap();
+                // Vector3 jac_gamma = Rxyz_ * src_pt.getVector3fMap();
 
-                // Linearized
-                // Error = src_pt.getVector3fMap() - tgt_pt.getVector3fMap(); //p2p
-                // Jacobian.block<3, 3>(0, 0) = MatrixX::Identity(3, 3);
-                // Jacobian.block<3, 1>(0, 3) = Vector3(src_pt.x, -src_pt.z, src_pt.y);
-                // Jacobian.block<3, 1>(0, 4) = Vector3(src_pt.z, src_pt.y, -src_pt.x);
-                // Jacobian.block<3, 1>(0, 5) = Vector3(-src_pt.y, src_pt.x, src_pt.z);
+                // Jacobian(0, 0) = 2 * Error[0]; // 2 * e1
+                // Jacobian(0, 1) = 2 * Error[1]; // 2 * e2
+                // Jacobian(0, 2) = 2 * Error[2]; // 2 * e3
 
+                // Jacobian(0, 3) = 2 * Error[0] * jac_alpha[0] + 2 * Error[1] * jac_alpha[1] + 2 * Error[2] * jac_alpha[2]; // alpha
+                // Jacobian(0, 4) = 2 * Error[0] * jac_beta[0] + 2 * Error[1] * jac_beta[1] + 2 * Error[2] * jac_beta[2];    // beta
+                // Jacobian(0, 5) = 2 * Error[0] * jac_gamma[0] + 2 * Error[1] * jac_gamma[1] + 2 * Error[2] * jac_gamma[2]; // gamma
+
+                // Jacobian = Jacobian * 0.5 * error;
                 Hessian += Jacobian.transpose() * Jacobian;
                 Residuals += Jacobian.transpose() * Error;
             }
 
-            parameters -= Hessian.colPivHouseholderQr().solve(Residuals);
+            parameters -= Hessian.inverse() * Residuals;
 
         } // Gauss Newton Iteration for
 
@@ -188,13 +195,12 @@ protected:
     const MyTransform *estimator_;
 };
 
+// error[0] = (Rx * Ry * Rz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap()).dot(tgt_pt.getNormalVector3fMap()); //p2p
+// Jacobian_.block<3, 3>(0, 0) = Eigen::MatrixXf::Identity(3, 3);
+// Jacobian_.block<3, 1>(0, 3) = Rx_ * Ry * Rz * src_pt.getVector3fMap();
+// Jacobian_.block<3, 1>(0, 4) = Rx * Ry_ * Rz * src_pt.getVector3fMap();
+// Jacobian_.block<3, 1>(0, 5) = Rx * Ry * Rz_ * src_pt.getVector3fMap();
 
-        // error[0] = (Rx * Ry * Rz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap()).dot(tgt_pt.getNormalVector3fMap()); //p2p
-        // Jacobian_.block<3, 3>(0, 0) = Eigen::MatrixXf::Identity(3, 3);
-        // Jacobian_.block<3, 1>(0, 3) = Rx_ * Ry * Rz * src_pt.getVector3fMap();
-        // Jacobian_.block<3, 1>(0, 4) = Rx * Ry_ * Rz * src_pt.getVector3fMap();
-        // Jacobian_.block<3, 1>(0, 5) = Rx * Ry * Rz_ * src_pt.getVector3fMap();
-
-        // Jacobian = Jacobian_.block<1, 6>(0, 0) * tgt_pt.normal_x +
-        //            Jacobian_.block<1, 6>(1, 0) * tgt_pt.normal_y +
-        //            Jacobian_.block<1, 6>(2, 0) * tgt_pt.normal_z;
+// Jacobian = Jacobian_.block<1, 6>(0, 0) * tgt_pt.normal_x +
+//            Jacobian_.block<1, 6>(1, 0) * tgt_pt.normal_y +
+//            Jacobian_.block<1, 6>(2, 0) * tgt_pt.normal_z;

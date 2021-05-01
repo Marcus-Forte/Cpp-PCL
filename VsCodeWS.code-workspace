@@ -83,7 +83,8 @@
 			"numericaldiff": "cpp",
 			"__locale": "cpp",
 			"codecvt": "cpp",
-			"__nullptr": "cpp"
+			"__nullptr": "cpp",
+			"*.bak": "cpp"
 		}
 	}
 }
