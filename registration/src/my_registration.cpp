@@ -3,6 +3,8 @@
 #include <pcl/registration/registration.h>
 #include <pcl/registration/icp.h>
 #include <pcl/registration/icp_nl.h>
+#include <pcl/registration/ndt.h>
+#include <pcl/registration/pyramid_feature_matching.h>
 #include <pcl/registration/gicp.h>
 #include <pcl/registration/gicp6d.h>
 #include <pcl/registration/transformation_estimation_svd.h>
@@ -19,6 +21,7 @@
 
 #include "my_transform.hpp"
 #include "my_transform_normals.hpp"
+// #include "my_icp.hpp"
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/registration_visualizer.h>
@@ -89,10 +92,11 @@ int main(int argc, char **argv)
     ne.compute(*target);
 
     pcl::IterativeClosestPoint<PointT, PointT> reg;
+    // pcl::NormalDistributionsTransform<PointT,PointT> reg;
+    // MyICP<PointT, PointT> reg;
+    // PCL_INFO("%s\n", reg.reg_name_);
     // pcl::GeneralizedIterativeClosestPoint<PointT, PointT> reg;
     // pcl::registration::FPCSInitialAlignment<PointT,PointT> reg;
-
-    pcl::RegistrationVisualizer<PointT, PointT> visualizer;
 
     reg.setInputSource(source);
     reg.setInputTarget(target);
@@ -100,13 +104,22 @@ int main(int argc, char **argv)
     reg.setMaxCorrespondenceDistance(0.5);
     reg.setMaximumIterations(100);
     reg.setTransformationEpsilon(1e-8);
+
+    // reg_vis.setInputSource(source);
+    // reg_vis.setInputTarget(target);
+    // visualizer.setRegistration(reg);
+    // reg_vis.setMaxCorrespondenceDistance(0.5);
+    // reg_vis.setMaximumIterations(100);
+    // reg_vis.setTransformationEpsilon(1e-8);
     // reg.setEuclideanFitnessEpsilon(1e-8);
 
     pcl::registration::TransformationEstimation<PointT, PointT>::Ptr transform_;
 
-    // visualizer.setRegistration(reg);
+    // pcl::RegistrationVisualizer<PointT, PointT> visualizer;
     // visualizer.startDisplay();
-    // visualizer.setMaximumDisplayedCorrespondences(100);
+    // visualizer.setMaximumDisplayedCorrespondences(1000);
+
+    // visualizer.setRegistration(reg);
 
     start = clock();
     transform_.reset(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
@@ -132,13 +145,13 @@ int main(int argc, char **argv)
     PCL_INFO("Alignment time G-N: %f\n", (float)elapsed / CLOCKS_PER_SEC);
     PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
-    // start = clock();
-    // transform_.reset(new pcl::registration::TransformationEstimationPointToPlane<PointT, PointT>);
-    // reg.setTransformationEstimation(transform_);
-    // reg.align(*aligned);
-    // elapsed = clock() - start;
-    // PCL_INFO("Alignment time LM Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
-    // PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+    start = clock();
+    transform_.reset(new pcl::registration::TransformationEstimationPointToPlane<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time LM Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
     // start = clock();
     // transform_.reset(new pcl::registration::TransformationEstimationPointToPlaneLLS<PointT, PointT>);
@@ -159,7 +172,7 @@ int main(int argc, char **argv)
     start = clock();
     transform_.reset(new MyTransformNormals<PointT, PointT>);
     reg.setTransformationEstimation(transform_);
-    reg.align(*aligned);
+    reg.align(*aligned_gn);
     elapsed = clock() - start;
     PCL_INFO("Alignment time G-N Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
     PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
@@ -169,7 +182,7 @@ int main(int argc, char **argv)
     pcl::visualization::PCLVisualizer viewer("Viewer");
     // std::cin.get();
 
-    int vp0, vp1,vp2;
+    int vp0, vp1, vp2;
     viewer.createViewPort(0, 0, 0.33, 1, vp0);
     viewer.createViewPort(0.33, 0, 0.66, 1, vp1);
     viewer.createViewPort(0.66, 0, 1, 1, vp2);
@@ -182,7 +195,7 @@ int main(int argc, char **argv)
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "target");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "source");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "aligned");
-     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "aligned_gn");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "aligned_gn");
 
     while (!viewer.wasStopped())
     {

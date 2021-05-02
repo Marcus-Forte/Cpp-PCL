@@ -101,7 +101,7 @@ public:
         parameters.setConstant(6, 0); // Init
         Hessian.setZero();
         Residuals.setZero();
-        for (int j = 0; j < 5; ++j)
+        for (int j = 0; j < 3; ++j)
         {
 
             Vector3 translation(parameters(0), parameters(1), parameters(2));
@@ -183,7 +183,7 @@ public:
                 // Hessian += Jacobian.transpose() * Jacobian; // 6 x 6 0.006197
                 // Residuals += Jacobian.transpose() * error;
             }
-            MatScalar damping = 2;
+            MatScalar damping = 1;
             Hessian = Jacobian.transpose() * Jacobian; // Fitness: 0.006057
             MatrixX diagonal = damping * Hessian.diagonal().asDiagonal();
             Hessian = Hessian + diagonal;
@@ -201,6 +201,9 @@ public:
 protected:
     typename WarpPointRigid<PointSource, PointTarget, MatScalar>::Ptr warp_point_;
     const MyTransform *estimator_;
+
+public:
+    PCL_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 // error[0] = (Rx * Ry * Rz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap()).dot(tgt_pt.getNormalVector3fMap()); //p2p

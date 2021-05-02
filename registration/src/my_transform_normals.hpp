@@ -20,7 +20,7 @@ class MyTransformNormals : public TransformationEstimation<PointSource, PointTar
 {
 public:
     using Ptr = pcl::shared_ptr<MyTransformNormals<PointSource, PointTarget, MatScalar>>;
-    using ConstPtr = pcl::shared_ptr<const MyTransform<PointSource, PointTarget, MatScalar>>;
+    using ConstPtr = pcl::shared_ptr<const MyTransformNormals<PointSource, PointTarget, MatScalar>>;
     using VectorX = Eigen::Matrix<MatScalar, Eigen::Dynamic, 1>;
     using MatrixX = Eigen::Matrix<MatScalar, Eigen::Dynamic, Eigen::Dynamic>;
     using Vector3 = Eigen::Matrix<MatScalar, 3, 1>;
@@ -101,7 +101,7 @@ public:
         parameters.setConstant(6, 0); // Init
         Hessian.setZero();
         Residuals.setZero();
-        for (int j = 0; j < 5; ++j)
+        for (int j = 0; j < 3; ++j)
         {
 
             Vector3 translation(parameters(0), parameters(1), parameters(2));
@@ -154,7 +154,7 @@ public:
                 //  compute jacobian
 
                 VectorX Error = Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap(); //p2p
-                MatScalar error = Error.norm();
+                MatScalar error = Error.dot(tgt_pt.getNormalVector3fMap());
 
                 Vector3 jac_alpha = Rx_yz * src_pt.getVector3fMap();
                 Vector3 jac_beta = Rxy_z * src_pt.getVector3fMap();
@@ -169,13 +169,13 @@ public:
                 // Jacobian(0, 5) = Error[0] * jac_gamma[0] + Error[1] * jac_gamma[1] + Error[2] * jac_gamma[2]; // gamma
 
                 // Stack jacobians
-                Jacobian(i, 0) = Error[0] / error; // 2 * e1
-                Jacobian(i, 1) = Error[1] / error; // 2 * e2
-                Jacobian(i, 2) = Error[2] / error; // 2 * e3
+                Jacobian(i, 0) = tgt_pt.normal_x; // 2 * e1
+                Jacobian(i, 1) = tgt_pt.normal_y; // 2 * e2
+                Jacobian(i, 2) = tgt_pt.normal_z; // 2 * e3
 
-                Jacobian(i, 3) = (Error[0] * jac_alpha[0] + Error[1] * jac_alpha[1] + Error[2] * jac_alpha[2]) / error; // alpha
-                Jacobian(i, 4) = (Error[0] * jac_beta[0] + Error[1] * jac_beta[1] + Error[2] * jac_beta[2]) / error;    // beta
-                Jacobian(i, 5) = (Error[0] * jac_gamma[0] + Error[1] * jac_gamma[1] + Error[2] * jac_gamma[2]) / error; // gamma
+                Jacobian(i, 3) = (tgt_pt.normal_x * jac_alpha[0] + tgt_pt.normal_y * jac_alpha[1] + tgt_pt.normal_z * jac_alpha[2]); // alpha
+                Jacobian(i, 4) = (tgt_pt.normal_x * jac_beta[0] + tgt_pt.normal_y * jac_beta[1] + tgt_pt.normal_z * jac_beta[2]);    // beta
+                Jacobian(i, 5) = (tgt_pt.normal_x * jac_gamma[0] + tgt_pt.normal_y * jac_gamma[1] + tgt_pt.normal_z * jac_gamma[2]); // gamma
                 NError[i] = error;
 
                 // Jacobian = Jacobian / error;
@@ -183,7 +183,7 @@ public:
                 // Hessian += Jacobian.transpose() * Jacobian; // 6 x 6 0.006197
                 // Residuals += Jacobian.transpose() * error;
             }
-            MatScalar damping = 1;
+            MatScalar damping = 0.5;
             Hessian = Jacobian.transpose() * Jacobian; // Fitness: 0.006057
             MatrixX diagonal = damping * Hessian.diagonal().asDiagonal();
             Hessian = Hessian + diagonal;
@@ -201,6 +201,9 @@ public:
 protected:
     typename WarpPointRigid<PointSource, PointTarget, MatScalar>::Ptr warp_point_;
     const MyTransformNormals *estimator_;
+
+public:
+    PCL_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 // error[0] = (Rx * Ry * Rz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap()).dot(tgt_pt.getNormalVector3fMap()); //p2p
