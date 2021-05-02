@@ -183,7 +183,7 @@ public:
                 // Hessian += Jacobian.transpose() * Jacobian; // 6 x 6 0.006197
                 // Residuals += Jacobian.transpose() * error;
             }
-            MatScalar damping = 1;
+            MatScalar damping = 2;
             Hessian = Jacobian.transpose() * Jacobian; // Fitness: 0.006057
             MatrixX diagonal = damping * Hessian.diagonal().asDiagonal();
             Hessian = Hessian + diagonal;
