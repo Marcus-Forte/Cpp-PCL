@@ -99,7 +99,7 @@ public:
             MatScalar alpha = parameters[3];
             MatScalar beta = parameters[4];
             MatScalar gamma = parameters[5];
-
+            // TODO Ajeitar
             Rxyz << 1, alpha*beta-gamma, alpha*gamma+beta,
                 gamma, alpha*beta*gamma+1, beta*gamma-alpha,
                 -beta, alpha, 1;

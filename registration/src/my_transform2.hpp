@@ -76,11 +76,15 @@ public:
         // Parameters : tx, ty, tz, ax, ay, az
         VectorX parameters(6);
 
-        Eigen::MatrixXf Jacobian(n_pts, 6); // 1 x 6
-        MatrixX Hessian(6, 6);              // 6 x 3 x 3 x 6 -> 6 x 6
+        Eigen::MatrixXf Jacobian(3, 6); // 3 x 6
 
-        VectorX NError(n_pts);
+        MatrixX Hessian(6, 6); // 6 x 3 x 3 x 6 -> 6 x 6
+
+        VectorX Error(3);     // 3 x 1
         VectorX Residuals(6); // 6 x 1
+
+        Hessian.setZero();
+        Residuals.setZero();
 
         // Rotations
         Matrix3 Rx;
@@ -92,51 +96,47 @@ public:
         Matrix3 Ry_;
         Matrix3 Rz_;
 
-        // Compositions
         Matrix3 Rxyz;
         Matrix3 Rx_yz;
         Matrix3 Rxy_z;
         Matrix3 Rxyz_;
 
         parameters.setConstant(6, 0); // Init
-        Hessian.setZero();
-        Residuals.setZero();
-        for (int j = 0; j < 5; ++j)
+        for (int i = 0; i < 5; ++i)
         {
 
             Vector3 translation(parameters(0), parameters(1), parameters(2));
+            MatScalar c_ax = cos(parameters(3));
+            MatScalar s_ax = sin(parameters(3));
 
-            MatScalar c_alpha = std::cos(parameters(3));
-            MatScalar s_alpha = std::sin(parameters(3));
+            MatScalar c_ay = cos(parameters(4));
+            MatScalar s_ay = sin(parameters(4));
 
-            MatScalar c_beta = std::cos(parameters(4));
-            MatScalar s_beta = std::sin(parameters(4));
-
-            MatScalar c_gamma = std::cos(parameters(5));
-            MatScalar s_gamma = std::sin(parameters(5));
+            MatScalar c_az = cos(parameters(5));
+            MatScalar s_az = sin(parameters(5));
 
             Rx << 1, 0, 0,
-                0, c_alpha, -s_alpha,
-                0, s_alpha, c_alpha;
+                0, c_ax, -s_ax,
+                0, s_ax, c_ax;
 
-            Ry << c_beta, 0, s_beta,
+            Ry << c_ay, 0, s_ay,
                 0, 1, 0,
-                -s_beta, 0, c_beta;
+                -s_ay, 0, c_ay;
 
-            Rz << c_gamma, -s_gamma, 0,
-                s_gamma, c_gamma, 0,
+            Rz << c_az, -s_az, 0,
+                s_az, c_az, 0,
                 0, 0, 1;
 
             Rx_ << 0, 0, 0,
-                0, -s_alpha, -c_alpha,
-                0, c_alpha, -s_alpha;
+                0, -s_ax, -c_ax,
+                0, c_ax, -s_ax;
 
-            Ry_ << -s_beta, 0, c_beta,
+            Ry_ << -s_ay, 0, c_ay,
                 0, 0, 0,
-                -c_beta, 0, -s_beta;
+                -c_ay, 0, -s_ay;
 
-            Rz_ << -s_gamma, -c_gamma, 0,
-                c_gamma, -s_gamma, 0,
+            Rz_ << -s_az, -c_az, 0,
+                c_az, -s_az, 0,
                 0, 0, 0;
 
             Rxyz = Rz * Ry * Rx;
@@ -153,41 +153,18 @@ public:
                 const PointSource &tgt_pt = cloud_tgt.points[tgt_index];
                 //  compute jacobian
 
-                VectorX Error = Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap(); //p2p
-                MatScalar error = Error.norm();
+                Error = Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap(); //p2p
 
-                Vector3 jac_alpha = Rx_yz * src_pt.getVector3fMap();
-                Vector3 jac_beta = Rxy_z * src_pt.getVector3fMap();
-                Vector3 jac_gamma = Rxyz_ * src_pt.getVector3fMap();
+                // float error = sqrt(Error[0] * Error[0] + Error[1] * Error[1] + Error[2] * Error[2]);
+                Jacobian.block<3, 3>(0, 0) = MatrixX::Identity(3, 3);
+                Jacobian.block<3, 1>(0, 3) = Rx_yz * src_pt.getVector3fMap();
+                Jacobian.block<3, 1>(0, 4) = Rxy_z * src_pt.getVector3fMap();
+                Jacobian.block<3, 1>(0, 5) = Rxyz_ * src_pt.getVector3fMap();
 
-                // Jacobian(0, 0) = Error[0]; // 2 * e1
-                // Jacobian(0, 1) = Error[1]; // 2 * e2
-                // Jacobian(0, 2) = Error[2]; // 2 * e3
 
-                // Jacobian(0, 3) = Error[0] * jac_alpha[0] + Error[1] * jac_alpha[1] + Error[2] * jac_alpha[2]; // alpha
-                // Jacobian(0, 4) = Error[0] * jac_beta[0] + Error[1] * jac_beta[1] + Error[2] * jac_beta[2];    // beta
-                // Jacobian(0, 5) = Error[0] * jac_gamma[0] + Error[1] * jac_gamma[1] + Error[2] * jac_gamma[2]; // gamma
-
-                // Stack jacobians
-                Jacobian(i, 0) = Error[0] / error; // 2 * e1
-                Jacobian(i, 1) = Error[1] / error; // 2 * e2
-                Jacobian(i, 2) = Error[2] / error; // 2 * e3
-
-                Jacobian(i, 3) = (Error[0] * jac_alpha[0] + Error[1] * jac_alpha[1] + Error[2] * jac_alpha[2]) / error; // alpha
-                Jacobian(i, 4) = (Error[0] * jac_beta[0] + Error[1] * jac_beta[1] + Error[2] * jac_beta[2]) / error;    // beta
-                Jacobian(i, 5) = (Error[0] * jac_gamma[0] + Error[1] * jac_gamma[1] + Error[2] * jac_gamma[2]) / error; // gamma
-                NError[i] = error;
-
-                // Jacobian = Jacobian / error;
-
-                // Hessian += Jacobian.transpose() * Jacobian; // 6 x 6 0.006197
-                // Residuals += Jacobian.transpose() * error;
+                Hessian += Jacobian.transpose() * Jacobian;
+                Residuals += Jacobian.transpose() * Error;
             }
-            MatScalar damping = 0;
-            Hessian = Jacobian.transpose() * Jacobian; // Fitness: 0.006057
-            MatrixX diagonal = damping * Hessian.diagonal().asDiagonal();
-            Hessian = Hessian + diagonal;
-            Residuals = Jacobian.transpose() * NError;
 
             parameters -= Hessian.inverse() * Residuals;
 

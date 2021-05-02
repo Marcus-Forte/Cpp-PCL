@@ -89,7 +89,7 @@ public:
 
         MatrixX Hessian(6, 6); // 6 x 3 x 3 x 6 -> 6 x 6
 
-        VectorX Error(n_pts); // 3 x 1
+        VectorX NError(n_pts);
         VectorX Residuals(6); // 6 x 1
 
         Hessian.setZero();
@@ -102,7 +102,7 @@ public:
         {
             indices_src[i] = correspondences[i].index_query;
             indices_tgt[i] = correspondences[i].index_match;
-            Error[i] = correspondences[i].distance;
+            NError[i] = correspondences[i].distance;
         }
 
         // Set temporary pointers
@@ -112,43 +112,21 @@ public:
         tmp_idx_tgt_ = &indices_tgt;
 
         parameters.setConstant(6, 0); // Init
-        float acceleration = 0.04;
-        for (int i = 0; i < 15; ++i)
+        Functor<MatScalar> functor(static_cast<int>(n_pts), this);
+        Eigen::NumericalDiff<Functor<MatScalar>> num_diff(functor);
+
+        for (int i = 0; i < 8; ++i)
         {
-            // Vector3 translation;
-            // translation[0] = parameters[0];
-            // translation[1] = parameters[1];
-            // translation[2] = parameters[2];
-
-            // MatScalar alpha = parameters[3];
-            // MatScalar beta = parameters[4];
-            // MatScalar gamma = parameters[5];
-
-            // Rxyz << 1, alpha * beta - gamma, alpha * gamma + beta,
-            //     gamma, alpha * beta * gamma + 1, beta * gamma - alpha,
-            //     -beta, alpha, 1;
-
-            Functor<MatScalar> functor(static_cast<int>(n_pts), this);
-            Eigen::NumericalDiff<Functor<MatScalar>> num_diff(functor);
-
-            // Eigen::LevenbergMarquardt<Eigen::NumericalDiff<Functor<MatScalar>>, MatScalar> lm(num_diff);
-            // int info = lm.minimize(parameters);
 
             num_diff.df(parameters, Jacobian);
 
-            // for (int i = 0; i < n_pts; i++)
-            // {
-            //     const int src_index = correspondences[i].index_query;
-            //     const int tgt_index = correspondences[i].index_match;
+            MatScalar damping = 2;
+            Hessian = Jacobian.transpose() * Jacobian; // Fitness: 0.006057
+            MatrixX diagonal = damping * Hessian.diagonal().asDiagonal();
+            Hessian = Hessian + diagonal;
+            Residuals = Jacobian.transpose() * NError;
 
-            //     const PointSource &src_pt = cloud_src.points[src_index];
-            //     const PointSource &tgt_pt = cloud_tgt.points[tgt_index];
-            //     //  compute jacobian
-            // // }
-            Hessian = Jacobian.transpose() * Jacobian;
-            Residuals = Jacobian.transpose() * Error;
-            parameters -= Hessian.colPivHouseholderQr().solve(Residuals);
-            
+            parameters -= Hessian.inverse() * Residuals;
 
         } // Gauss Newton Iteration for
 

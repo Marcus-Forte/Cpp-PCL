@@ -17,7 +17,7 @@
 
 #include <pcl/io/pcd_io.h>
 
-#include "my_transform2.hpp"
+#include "my_transform.hpp"
 #include "my_transform_normals.hpp"
 
 #include <pcl/visualization/pcl_visualizer.h>
@@ -156,13 +156,13 @@ int main(int argc, char **argv)
     // PCL_INFO("Alignment time: Dual Quat %f\n", (float)elapsed / CLOCKS_PER_SEC);
     // PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
-    // start = clock();
-    // transform_.reset(new MyTransformNormals<PointT, PointT>);
-    // reg.setTransformationEstimation(transform_);
-    // reg.align(*aligned);
-    // elapsed = clock() - start;
-    // PCL_INFO("Alignment time Marcus Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
-    // PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+    start = clock();
+    transform_.reset(new MyTransformNormals<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time G-N Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
     reg.hasConverged() ? PCL_INFO("Converged\n") : PCL_INFO("Not Converged\n");
 
