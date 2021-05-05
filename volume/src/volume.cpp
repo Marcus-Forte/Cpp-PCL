@@ -48,6 +48,8 @@ int main(int argc, char **argv)
 
 	PCUtils::readFile(argv[1], *cloud);
 
+
+
 	// Remove useless ground
 	PCL_INFO("Removing noise\n");
 	pcl::PassThrough<pcl::PointXYZ> passthrough;

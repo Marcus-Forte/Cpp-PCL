@@ -5,6 +5,7 @@
 #include <pcl/search/octree.h>
 #include <unordered_set>
 
+#include <pcl/features/normal_3d.h>
 #include <pcl/registration/gicp.h>
 
 template <class PointT>
@@ -44,8 +45,6 @@ public:
         this->ground = ground; // share owenership to avoid copy
     }
 
-
-
     double compute(PointCloud &output_cloud)
     {
         pcl::octree::OctreePointCloudSearch<PointT> octree(resolution);
@@ -54,8 +53,8 @@ public:
         PointCloudPtr oct_cloud(new PointCloud);
         PointCloudPtr oct_cloud_gnd(new PointCloud);
         output_cloud.clear();
-        
-        PCL_INFO("Computing ... %d, %d\n",ground->size(), cloud->size());
+
+        PCL_INFO("Computing ... %d, %d\n", ground->size(), cloud->size());
         if (!cloud)
         {
             PCL_ERROR("NO CLOUD");
@@ -64,12 +63,23 @@ public:
 
         if (!ground)
         {
-             PCL_ERROR("NO GROUND  ");
-             return 0;
+            PCL_ERROR("NO GROUND  ");
+            return 0;
         }
 
-        *oct_cloud = *cloud;
-        *oct_cloud_gnd = *ground;
+        if (registration)
+        {
+            PointCloudPtr src(new PointCloud);
+            PointCloudPtr tgt(new PointCloud);
+
+            *oct_cloud = *cloud;
+            *oct_cloud_gnd = *ground;
+        }
+        else
+        {
+            *oct_cloud = *cloud;
+            *oct_cloud_gnd = *ground;
+        }
 
         octree_ground.setInputCloud(oct_cloud_gnd);
         octree_ground.addPointsFromInputCloud();
@@ -107,10 +117,10 @@ public:
         {
             viewer.reset(new pcl::visualization::PCLVisualizer);
             // viewer->addCoordinateSystem(1);
-            viewer->addPointCloud(oct_cloud,"cloud");
-            viewer->addPointCloud(oct_cloud_gnd,"ground");
-            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,0,1,0,"ground");
-            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,1,1,1,"cloud");
+            viewer->addPointCloud(oct_cloud, "cloud");
+            viewer->addPointCloud(oct_cloud_gnd, "ground");
+            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "ground");
+            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 1, "cloud");
         }
 
         float sum_z = 0;
@@ -136,7 +146,6 @@ public:
                     PointT min_gnd, max_gnd;
                     pcl::getMinMax3D(*box_cloud, min_, max_);
                     pcl::getMinMax3D(*box_cloud_gnd, min_gnd, max_gnd);
-
 
                     bool paint_blue = false;
                     if ((max_.z - max_gnd.z) > 0.02)
