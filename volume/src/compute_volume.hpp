@@ -19,6 +19,11 @@ public:
     {
     }
 
+    inline void setResolution(double res)
+    {
+        resolution = res;
+    }
+
     inline void setDebug(bool debug_)
     {
         debug = debug_;
@@ -42,56 +47,29 @@ public:
     double compute()
     {
         pcl::octree::OctreePointCloudSearch<PointT> octree(resolution);
+        pcl::octree::OctreePointCloudSearch<PointT> octree_ground(resolution);
+
         PointCloudPtr oct_cloud(new PointCloud);
+        PointCloudPtr oct_cloud_gnd(new PointCloud);
+        
+        PCL_INFO("Computing ... %d, %d\n",ground->size(), cloud->size());
         if (!cloud)
         {
             PCL_ERROR("NO CLOUD");
             return 0;
         }
 
+        if (!ground)
+        {
+             PCL_ERROR("NO GROUND  ");
+             return 0;
+        }
+
         *oct_cloud = *cloud;
-        if (ground.get() != nullptr)
-        {
+        *oct_cloud_gnd = *ground;
 
-            if (registration)
-            {
-                pcl::GeneralizedIterativeClosestPoint<PointT, PointT> gicp;
-                
-                pcl::VoxelGrid<PointT> voxel;
-
-                PointCloudPtr ground_ds(new PointCloud);
-                PointCloudPtr cloud_ds(new PointCloud);
-                PointCloudPtr aligned_ground(new PointCloud);
-
-                voxel.setInputCloud(ground);
-                voxel.setLeafSize(resolution, resolution, resolution);
-                voxel.filter(*ground_ds);
-
-                voxel.setInputCloud(cloud);
-                voxel.filter(*cloud_ds);
-
-                gicp.setInputSource(ground_ds);
-                gicp.setInputTarget(cloud_ds);
-                gicp.setMaximumOptimizerIterations(10);
-                std::cout << "Registering..." << std::endl;
-                gicp.align(*aligned_ground);
-                std::cout << "Done..." << std::endl;
-
-                Eigen::Matrix4f gicp_transform = gicp.getFinalTransformation();
-                pcl::transformPointCloud(*ground, *aligned_ground, gicp_transform);
-
-                *oct_cloud += *aligned_ground;
-            }
-            else
-            {
-                *oct_cloud += *ground;
-            }
-        }
-        else
-        {
-            PCL_ERROR("NO GROUND BUT OK ");
-        }
-
+        octree_ground.setInputCloud(oct_cloud_gnd);
+        octree_ground.addPointsFromInputCloud();
         octree.setInputCloud(oct_cloud);
         octree.addPointsFromInputCloud();
 
@@ -101,28 +79,35 @@ public:
         PointT box_min(min.x, min.y, min.z);
         PointT box_max(min.x + resolution, min.y + resolution, max.z);
 
-        // std::cout << min << std::endl;
-        // std::cout << max << std::endl;
-
-        // std::cout << box_min << std::endl;
-        // std::cout << box_max << std::endl;
-
         pcl::IndicesPtr indices(new pcl::Indices);
+        pcl::IndicesPtr indices_gnd(new pcl::Indices);
+
         pcl::ExtractIndices<PointT> extractor;
+        pcl::ExtractIndices<PointT> extractor_gnd;
+
         extractor.setIndices(indices);
         extractor.setInputCloud(oct_cloud);
 
+        extractor_gnd.setIndices(indices_gnd);
+        extractor_gnd.setInputCloud(oct_cloud_gnd);
+
         PointCloudPtr box_cloud(new PointCloud);
+        PointCloudPtr box_cloud_gnd(new PointCloud);
 
         // pcl::PointCloud debug_cloud;
+
+        PCL_INFO("Loop\n");
 
         pcl::visualization::PCLVisualizer::Ptr viewer;
 
         if (debug)
         {
             viewer.reset(new pcl::visualization::PCLVisualizer);
-            viewer->addCoordinateSystem(1);
-            viewer->addPointCloud(oct_cloud);
+            // viewer->addCoordinateSystem(1);
+            viewer->addPointCloud(oct_cloud,"cloud");
+            viewer->addPointCloud(oct_cloud_gnd,"ground");
+            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,0,1,0,"ground");
+            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,1,1,1,"cloud");
         }
 
         float sum_z = 0;
@@ -132,18 +117,26 @@ public:
 
             while (box_max.x < max.x)
             {
+                // PCL_INFO("searching box\n");
                 octree.boxSearch(box_min.getVector3fMap(), box_max.getVector3fMap(), *indices);
+                octree_ground.boxSearch(box_min.getVector3fMap(), box_max.getVector3fMap(), *indices_gnd);
 
                 if (indices->size())
                 {
-
+                    // PCL_INFO("Extracting box\n");
                     extractor.filter(*box_cloud);
+                    extractor_gnd.filter(*box_cloud_gnd);
                     // std::cout << "Extracted: " << box_cloud->size() << std::endl;
 
+                    // PCL_INFO("Extracting min max\n");
                     PointT min_, max_;
+                    PointT min_gnd, max_gnd;
                     pcl::getMinMax3D(*box_cloud, min_, max_);
+                    pcl::getMinMax3D(*box_cloud_gnd, min_gnd, max_gnd);
+
+
                     bool paint_blue = false;
-                    if ((max_.z - min_.z) > 0.4)
+                    if ((max_.z - max_gnd.z) > 0.02)
                     { // filter
                         sum_z += max_.z - min_.z;
                         paint_blue = true;
@@ -159,11 +152,10 @@ public:
                         else
                             viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "box");
                         viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "box");
-                        viewer->spinOnce(25);
+                        viewer->spinOnce(15);
+                        std::this_thread::sleep_for(std::chrono::milliseconds(15));
                         std::cout << "Volume: " << sum_z * resolution * resolution << std::endl;
                     }
-
-                    
                 }
 
                 box_min.x += resolution;

@@ -37,6 +37,7 @@ int main(int argc, char **argv)
 	pcl::console::parse_argument(argc, argv, "-g", ground_file);
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr ground(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr processing_cloud(new pcl::PointCloud<pcl::PointXYZ>); // Cloud to be processed
 
 	PCUtils::readFile(argv[1], *cloud);
@@ -46,21 +47,21 @@ int main(int argc, char **argv)
 	pcl::PassThrough<pcl::PointXYZ> passthrough;
 	passthrough.setInputCloud(cloud);
 	passthrough.setFilterFieldName("z");
-	passthrough.setFilterLimits(0.2, 100);
+	passthrough.setFilterLimits(0, 1);
 	passthrough.filter(*cloud);
 
 	volumeEstimator<PointT> estimator(resolution);
 	estimator.setInputCloud(cloud);
-	// estimator.setDebug(true);
-	estimator.SetRegistration(true);
+	estimator.setDebug(true);
+	estimator.SetRegistration(false);
 
 	double volume = 0;
+	PCL_INFO("Res: %f\n",resolution);
 
 	if (ground_file.size())
 	{
 		PCL_INFO("Ground file found.\n");		
 
-		PointCloudT::Ptr ground(new PointCloudT);
 		PCUtils::readFile(ground_file, *ground);
 
 		passthrough.setInputCloud(ground);
@@ -71,14 +72,14 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		volume = estimator.compute();
+		
+		PCL_ERROR("No Ground");
 	}
 
 	std::cout << "Volume: " << volume << std::endl;
 
-	return 0;
 
-	pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZ> color(processing_cloud, "z");
+	pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZ> color(cloud, "z");
 	// std::cout << "cloud" << *cloud << std::endl;
 	// std::cout << "processing_cloud" << *processing_cloud << std::endl;
 
@@ -87,12 +88,16 @@ int main(int argc, char **argv)
 	viewer.createViewPort(0, 0, 0.5, 1, v1);
 	viewer.createViewPort(0.5, 0, 1, 1, v2);
 	viewer.addPointCloud(cloud, "cloud");
+	viewer.addPointCloud(ground, "ground");
 	// viewer.addPointCloud(processing_cloud, "interpolated", v2);
-	viewer.addPointCloud(processing_cloud, color, "interpolated", 2);
+	// viewer.addPointCloud(processing_cloud, color, "interpolated", v2);
 	// viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "interpolated");
-	viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 4, "cloud");
-	viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "interpolated");
-	viewer.addCoordinateSystem(1);
+	viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1,1,1, "cloud");
+	viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0,1,0, "ground");
+
+	viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "cloud");
+	viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "ground");
+	// viewer.addCoordinateSystem(1);
 
 	while (!viewer.wasStopped())
 	{
