@@ -44,13 +44,16 @@ public:
         this->ground = ground; // share owenership to avoid copy
     }
 
-    double compute()
+
+
+    double compute(PointCloud &output_cloud)
     {
         pcl::octree::OctreePointCloudSearch<PointT> octree(resolution);
         pcl::octree::OctreePointCloudSearch<PointT> octree_ground(resolution);
 
         PointCloudPtr oct_cloud(new PointCloud);
         PointCloudPtr oct_cloud_gnd(new PointCloud);
+        output_cloud.clear();
         
         PCL_INFO("Computing ... %d, %d\n",ground->size(), cloud->size());
         if (!cloud)
@@ -139,6 +142,7 @@ public:
                     if ((max_.z - max_gnd.z) > 0.02)
                     { // filter
                         sum_z += max_.z - min_.z;
+                        output_cloud += *box_cloud + *box_cloud_gnd;
                         paint_blue = true;
                     }
 
