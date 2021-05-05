@@ -35,6 +35,10 @@ int main(int argc, char **argv)
 
 	pcl::console::parse_argument(argc, argv, "-r", resolution);
 	pcl::console::parse_argument(argc, argv, "-g", ground_file);
+	bool debug_mode = false;
+	if (pcl::console::find_switch(argc,argv,"-d") ) {
+		debug_mode = true;
+	}
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr ground(new pcl::PointCloud<pcl::PointXYZ>);
@@ -52,7 +56,7 @@ int main(int argc, char **argv)
 
 	volumeEstimator<PointT> estimator(resolution);
 	estimator.setInputCloud(cloud);
-	estimator.setDebug(true);
+	estimator.setDebug(debug_mode);
 	estimator.SetRegistration(false);
 
 	double volume = 0;
