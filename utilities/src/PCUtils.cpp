@@ -118,19 +118,7 @@ void PCUtils::makeFloor(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl
     // cloud_out = floor;
 }
 
-template <typename pointT>
-void PCUtils::printPoints(const pcl::PointCloud<pointT> &cloud_in, const std::string &name)
-{
 
-    std::cout << "Cloud : " << name << " | points : " << cloud_in.size() << std::endl
-              << std::endl;
-    for (int i = 0; i < cloud_in.size(); ++i)
-    {
-        std::cout << "x = " << cloud_in.points[i].x << "|";
-        std::cout << "y = " << cloud_in.points[i].y << "|";
-        std::cout << "z = " << cloud_in.points[i].z << std::endl;
-    }
-}
 
 // Fill towards centroid
 // Density -> extra points per current point. recommended = 2
@@ -181,77 +169,30 @@ void PCUtils::fillCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_in, pcl
     }
 }
 
-
-
-// typedef std::pair<float,int> mypair; //curvature + index
-
-// bool comparator(const mypair& l, const mypair& r){
-//     return l.first < r.first;
-// }
-
-// // Must preallocate
-// template <class T>
-// void PCUtils::PlaneDetection(const pcl::PointCloud<T> &input_cloud, pcl::PointCloud<T> &features_cloud, int N, int N_planar)
+// template <typename PointT>
+// void PCUtils::printPoints(const pcl::PointCloud<PointT> &cloud_in, const std::string &name)
 // {
-//     pcl::PointCloud<pcl::PointXYZ>::Ptr window_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-//     // pcl::PointCloud<pcl::PointXYZ>::Ptr input_buffer(new pcl::PointCloud<pcl::PointXYZ>);
-//     pcl::PointCloud<pcl::PointXYZ>::Ptr feature_points(new pcl::PointCloud<pcl::PointXYZ>);
-//     // pcl::copyPointCloud(input_cloud, *input_buffer);
-//     // Main Loop
-//     int count = 0;
 
-//     std::vector<mypair> curvatures;
-
-//     for (int i = N; i < input_cloud.size() - N; i++)
+//     std::cout << "Cloud : " << name << " | points : " << cloud_in.size() << std::endl
+//               << std::endl;
+//     for (int i = 0; i < cloud_in.size(); ++i)
 //     {
-
-//         window_cloud->clear();
-//         window_cloud->push_back(input_cloud.points[i]);
-//         for (int j = 1; j < N; ++j)
-//         {
-//             window_cloud->push_back(input_cloud.points[i + j]);
-//             window_cloud->push_back(input_cloud.points[i - j]);
-//         }
-
-//         T centroid;
-//         pcl::computeCentroid(*window_cloud, centroid);
-
-//         // less means more smooth
-//         // float smoothness = (centroid.getVector3fMap() - window_cloud->points[0].getVector3fMap()).norm();
-
-//         Eigen::Vector3f sum = Eigen::Vector3f::Zero();
-//         for(int k=1;k<window_cloud->size();++k){
-//             sum += ( window_cloud->points[0].getVector3fMap() - window_cloud->points[k].getVector3fMap() );
-
-//         }
-//         // from LOAM
-//         float smoothness = sum.norm() / ( window_cloud->points[0].getVector3fMap().norm() * window_cloud->size() );
-//         mypair curv;
-//         curv.first = smoothness;
-//         curv.second = i;
-//         curvatures.push_back(curv);
-//         // curvature[count] = smoothness;
-//         // count++;
-
+//         std::cout << "x = " << cloud_in.points[i].x << "|";
+//         std::cout << "y = " << cloud_in.points[i].y << "|";
+//         std::cout << "z = " << cloud_in.points[i].z << std::endl;
 //     }
-
-//     std::sort(curvatures.begin(),curvatures.end(),comparator);
-//     int index;
-//     int index_low;
-//     for(int j = 0;j<N_planar;++j){ // pick top ten
-//         index = ( curvatures.begin() + j)->second; // index
-//         index_low = (curvatures.end() - 1 - j)->second;
-//         feature_points->points.push_back(input_cloud.points[index]);
-//         // feature_points->points.push_back(input_cloud.points[index_low]);
-//     }
-
-//     pcl::copyPointCloud(*feature_points, features_cloud);
 // }
+
 
 // Instantiations
 
 // Explicit Instantiation
-template void PCUtils::printPoints<pcl::PointXYZ>(const pcl::PointCloud<pcl::PointXYZ> &cloud_in, const std::string &name);
-template void PCUtils::printPoints<pcl::PointXYZRGB>(const pcl::PointCloud<pcl::PointXYZRGB> &cloud_in, const std::string &name);
+// template void PCUtils::printPoints<pcl::PointXYZ>(const pcl::PointCloud<pcl::PointXYZ> &cloud_in, const std::string &name);
+// template void PCUtils::printPoints<pcl::PointXYZRGB>(const pcl::PointCloud<pcl::PointXYZRGB> &cloud_in, const std::string &name);
+
+// template int PCUtils::readFile<pcl::PointNormal>(const std::string &cloudfile, const pcl::PointCloud<pcl::PointNormal> &cloud);
+
+
+
 // template void PCUtils::EdgeDetection(const pcl::PointCloud<pcl::PointXYZ> &input_cloud, pcl::PointCloud<pcl::PointXYZ> &features_cloud, int N);
 // template void PCUtils::PlaneDetection(const pcl::PointCloud<pcl::PointXYZ> &input_cloud, pcl::PointCloud<pcl::PointXYZ> &features_cloud, int N, int N_planar);
