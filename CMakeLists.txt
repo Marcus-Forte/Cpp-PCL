@@ -35,7 +35,7 @@ add_executable(plane src/plane.cpp)
 add_executable(normals src/normals.cpp)
 
 add_executable(visualize src/visualize.cpp)
-add_executable(duna_visualize src/duna_visualize.cpp)
+# add_executable(duna_visualize src/duna_visualize.cpp)
 
 add_executable(geocrop src/geocrop.cpp)
 add_executable(subsample src/subsample.cpp)
@@ -50,7 +50,7 @@ add_executable(extconverter src/extconverter.cpp)
 target_link_libraries(filters Utils)
 target_link_libraries(geocrop Utils)
 target_link_libraries(visualize Utils)
-target_link_libraries(duna_visualize Utils)
+# target_link_libraries(duna_visualize Utils)
  
 
 

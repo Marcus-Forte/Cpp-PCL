@@ -12,15 +12,15 @@ void printUsage(){
         std::cout << "Usage: extconverter [.pcd / .txt] [-D dir]" << std::endl;
 }
 
-template <typename pointT>
-static inline int readTxt(const std::string &filename, pcl::PointCloud<pointT> &cloud)
+template <typename PointT>
+static inline int readTxt(const std::string &filename, pcl::PointCloud<PointT> &cloud)
 {
     std::ifstream file;
     file.open(filename);
 
     std::string line;
     // std::cout << "read file" << std::endl;
-    pointT pt;
+    PointT pt;
     while (std::getline(file, line))
     {
 

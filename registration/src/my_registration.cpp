@@ -19,9 +19,9 @@
 
 #include <pcl/io/pcd_io.h>
 
-#include "my_transform.hpp"
-#include "my_transform_normals.hpp"
-// #include "my_icp.hpp"
+#include "my/my_transform.hpp"
+#include "my/my_transform_normals.hpp"
+#include "my/my_icp.h"
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/registration_visualizer.h>
@@ -51,6 +51,8 @@ public:
 protected:
 };
 
+
+
 int main(int argc, char **argv)
 {
 
@@ -61,9 +63,9 @@ int main(int argc, char **argv)
     PointCloudT::Ptr source(new PointCloudT);
     PointCloudT::Ptr target(new PointCloudT);
 
-    if (argc < 3)
+    if (argc < 4)
     {
-        PCL_ERROR("use : %s [src] [tgt]\n", argv[0]);
+        PCL_ERROR("use : %s [src] [tgt] [nearestK]\n", argv[0]);
         exit(-1);
     }
     if (pcl::io::loadPCDFile(argv[1], *source) == -1)
@@ -78,6 +80,8 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
+    int nearestK = atoi(argv[3]);
+
     PCL_INFO("src pts : %d\n", source->size());
     PCL_INFO("tgt pts : %d\n", target->size());
 
@@ -86,12 +90,21 @@ int main(int argc, char **argv)
     PointCloudT::Ptr aligned_gn(new PointCloudT);
     PointCloudT::Ptr aligned(new PointCloudT);
 
-    pcl::NormalEstimation<PointT, PointT> ne;
-    ne.setInputCloud(target);
-    ne.setKSearch(10);
-    ne.compute(*target);
+    pcl::search::KdTree<pcl::PointXYZINormal>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZINormal>);
 
-    pcl::IterativeClosestPoint<PointT, PointT> reg;
+    tree->setInputCloud(target);
+    pcl::NormalEstimation<PointT, PointT> ne;
+    ne.setSearchMethod(tree);
+    ne.setInputCloud(target);
+    ne.setKSearch(nearestK);
+    ne.compute(*target);
+ 
+
+    MyRegistration<PointT,PointT> reg(nearestK);
+    reg.setSearchMethodTarget(tree,true);
+    
+    // reg.setSearchMethodTarget(tree,true);
+    // pcl::IterativeClosestPoint<PointT, PointT> reg;
     // pcl::NormalDistributionsTransform<PointT,PointT> reg;
     // MyICP<PointT, PointT> reg;
     // PCL_INFO("%s\n", reg.reg_name_);
@@ -121,13 +134,13 @@ int main(int argc, char **argv)
 
     // visualizer.setRegistration(reg);
 
-    start = clock();
-    transform_.reset(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
-    reg.setTransformationEstimation(transform_);
-    reg.align(*aligned);
-    elapsed = clock() - start;
-    PCL_INFO("Alignment time LM: %f\n", (float)elapsed / CLOCKS_PER_SEC);
-    PCL_INFO("Fitness: %f\n", reg.getFitnessScore()); //0.005
+    // start = clock();
+    // transform_.reset(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
+    // reg.setTransformationEstimation(transform_);
+    // reg.align(*aligned);
+    // elapsed = clock() - start;
+    // PCL_INFO("Alignment time LM: %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    // PCL_INFO("Fitness: %f\n", reg.getFitnessScore()); //0.005
 
     start = clock();
     transform_.reset(new pcl::registration::TransformationEstimationSVD<PointT, PointT>);
@@ -137,29 +150,29 @@ int main(int argc, char **argv)
     PCL_INFO("Alignment time SVD: %f\n", (float)elapsed / CLOCKS_PER_SEC);
     PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
-    start = clock();
-    transform_.reset(new MyTransform<PointT, PointT>);
-    reg.setTransformationEstimation(transform_);
-    reg.align(*aligned_gn);
-    elapsed = clock() - start;
-    PCL_INFO("Alignment time G-N: %f\n", (float)elapsed / CLOCKS_PER_SEC);
-    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
-
-    start = clock();
-    transform_.reset(new pcl::registration::TransformationEstimationPointToPlane<PointT, PointT>);
-    reg.setTransformationEstimation(transform_);
-    reg.align(*aligned);
-    elapsed = clock() - start;
-    PCL_INFO("Alignment time LM Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
-    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+    // start = clock();
+    // transform_.reset(new MyTransform<PointT, PointT>);
+    // reg.setTransformationEstimation(transform_);
+    // reg.align(*aligned_gn);
+    // elapsed = clock() - start;
+    // PCL_INFO("Alignment time G-N: %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    // PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
     // start = clock();
-    // transform_.reset(new pcl::registration::TransformationEstimationPointToPlaneLLS<PointT, PointT>);
+    // transform_.reset(new pcl::registration::TransformationEstimationPointToPlane<PointT, PointT>);
     // reg.setTransformationEstimation(transform_);
     // reg.align(*aligned);
     // elapsed = clock() - start;
-    // PCL_INFO("Alignment time: Normals LLS %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    // PCL_INFO("Alignment time LM Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
     // PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+
+    start = clock();
+    transform_.reset(new pcl::registration::TransformationEstimationPointToPlaneLLS<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time: Normals LLS %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
     // start = clock();
     // transform_.reset(new pcl::registration::TransformationEstimationDualQuaternion<PointT, PointT>);
@@ -187,9 +200,13 @@ int main(int argc, char **argv)
     viewer.createViewPort(0.33, 0, 0.66, 1, vp1);
     viewer.createViewPort(0.66, 0, 1, 1, vp2);
     viewer.addPointCloud<PointT>(target, "target", 0);
+    viewer.addPointCloudNormals<PointT>(target,100,0.05,"target_n",0);
+
     viewer.addPointCloud<PointT>(source, "source", vp0);
     viewer.addPointCloud<PointT>(aligned, "aligned", vp1);
     viewer.addPointCloud<PointT>(aligned_gn, "aligned_gn", vp2);
+
+    
     viewer.addCoordinateSystem(1);
 
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "target");

@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 	viewer.createViewPort(0, 0, 1, 1, v1);
 	// viewer.setCameraPosition(-6.61, -2.13, 10.33, 1.0, 1, 1);
 	// viewer.setBackgroundColor(0, 0, 0, v1);
-	viewer.addCoordinateSystem(1, "ref", v1);
+	// viewer.addCoordinateSystem(1, "ref", v1);
 	viewer.registerPointPickingCallback(pp_callback);
 	// viewer.registerKeyboardCallback(keyCallback);
 	make_grid(viewer, 1);
@@ -113,8 +113,9 @@ int main(int argc, char **argv)
 		std::cout << "Reading file .. " << i << std::endl;
 		cloud_vector[i] = pcl::make_shared<PointCloudT>();
 
-		// PCUtils::readFile(argv[i+1], *cloud_vector[i]);
-		pcl::io::loadPCDFile(argv[i + 1], *cloud_vector[i]);
+		PCUtils::readFile(argv[i+1], *cloud_vector[i]);
+		// pcl::io::loadPCDFile(argv[i + 1], *cloud_vector[i]);
+		
 		ColorHandlerPtr color;
 
 		Eigen::Vector4f origin = Eigen::Vector4f::Zero();
