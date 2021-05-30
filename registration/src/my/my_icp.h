@@ -97,7 +97,7 @@ public:
         source_has_normals_ = false;
         for (const auto &field : fields)
         {
-            if (field.name == "x")
+            if (field.name == "x")  
                 x_idx_offset_ = field.offset;
             else if (field.name == "y")
                 y_idx_offset_ = field.offset;

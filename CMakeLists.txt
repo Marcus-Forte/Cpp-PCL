@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.8)
 project(marcusPCL)
 
+# set (CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/install) #avoid installing in default path
+	
+
 set (CMAKE_BUILD_TYPE Release)
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin) #make binary folder

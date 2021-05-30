@@ -7,12 +7,33 @@ find_package(OpenMP)
 # include_directories(${OpenMP_INCLUDE_DIRS})
 # 
 
-
-add_library (my_icp src/my/my_icp.cpp src/my/my_correspondence_estimator.cpp)
+set (LibraryName "my_icp")
+add_library (${LibraryName} src/my/my_icp.cpp src/my/my_correspondence_estimator.cpp)
 
 
 add_executable(features src/features_app.cpp)
 add_executable(registration src/registration.cpp)
 add_executable(my_registration src/my_registration.cpp)
 
-target_link_libraries(my_registration my_icp)
+target_link_libraries(my_registration ${LibraryName})
+
+# export my icp
+
+# message(WARNING ${CMAKE_INSTALL_INCLUDEDIR})
+# message(WARNING ${CMAKE_CURRENT_SOURCE_DIR})
+
+install(TARGETS ${LibraryName} 
+        DESTINATION lib)
+
+file(GLOB header_files "${CMAKE_CURRENT_SOURCE_DIR}/src/my/*.h")
+file(GLOB header_files_ "${CMAKE_CURRENT_SOURCE_DIR}/src/my/*.hpp")
+
+install(FILES ${header_files_} ${header_files}
+        DESTINATION include/${LibraryName} 
+)
+
+# install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src/my"
+#         DESTINATION include/${LibraryName} 
+#         FILES_MATCHING
+#         PATTERN "*.h"
+#         PATTERN "*.hpp")
