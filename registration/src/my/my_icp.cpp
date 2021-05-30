@@ -333,4 +333,5 @@ bool MyRegistration<PointSource, PointTarget, Scalar>::initCompute()
     return (pcl::PCLBase<PointSource>::initCompute());
 }
 
+// Instantiation
 template class MyRegistration<pcl::PointXYZINormal, pcl::PointXYZINormal, float>;

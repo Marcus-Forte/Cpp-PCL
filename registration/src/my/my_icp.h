@@ -5,9 +5,9 @@
 #pragma once
 
 #include <pcl/registration/registration.h>
-#include <pcl/registration/transformation_estimation_svd.h>
 #include <pcl/registration/default_convergence_criteria.h>
-// #include <pcl/registration/correspondence_estimation.h>
+
+#include "my_transform_normals.h" // mudar para .h
 #include "my_correspondence_estimator.h"
 
 template <typename PointSource, typename PointTarget, typename Scalar = float>
@@ -65,7 +65,8 @@ public:
         : x_idx_offset_(0), y_idx_offset_(0), z_idx_offset_(0), nx_idx_offset_(0), ny_idx_offset_(0), nz_idx_offset_(0), use_reciprocal_correspondence_(false), source_has_normals_(false), target_has_normals_(false)
     {
         reg_name_ = "MyRegistration";
-        transformation_estimation_.reset(new pcl::registration::TransformationEstimationSVD<PointSource, PointTarget, Scalar>());
+        // transformation_estimation_.reset(new pcl::registration::TransformationEstimationSVD<PointSource, PointTarget, Scalar>());
+        transformation_estimation_.reset(new MyTransformNormals<PointSource,PointTarget,Scalar>());
         // correspondence_estimation_.reset(new pcl::registration::CorrespondenceEstimation<PointSource, PointTarget, Scalar>);
         correspondence_estimation_.reset(new MyCorrespondenceEstimation<PointSource, PointTarget, Scalar>(1));
         convergence_criteria_.reset(new pcl::registration::DefaultConvergenceCriteria<Scalar>(nr_iterations_, transformation_, *correspondences_));
@@ -75,7 +76,8 @@ public:
         : x_idx_offset_(0), y_idx_offset_(0), z_idx_offset_(0), nx_idx_offset_(0), ny_idx_offset_(0), nz_idx_offset_(0), use_reciprocal_correspondence_(false), source_has_normals_(false), target_has_normals_(false)
     {
         reg_name_ = "MyRegistration";
-        transformation_estimation_.reset(new pcl::registration::TransformationEstimationSVD<PointSource, PointTarget, Scalar>());
+        transformation_estimation_.reset(new MyTransformNormals<PointSource,PointTarget,Scalar>());
+        // transformation_estimation_.reset(new pcl::registration::TransformationEstimationSVD<PointSource, PointTarget, Scalar>());
         // correspondence_estimation_.reset(new pcl::registration::CorrespondenceEstimation<PointSource, PointTarget, Scalar>);
         correspondence_estimation_.reset(new MyCorrespondenceEstimation<PointSource, PointTarget, Scalar>(nearestK));
         convergence_criteria_.reset(new pcl::registration::DefaultConvergenceCriteria<Scalar>(nr_iterations_, transformation_, *correspondences_));

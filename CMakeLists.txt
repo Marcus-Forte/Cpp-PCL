@@ -9,6 +9,7 @@ set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set (EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin) #make binary folder
 find_package(PCL 1.8 REQUIRED)
 
+set (CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON) #install only target
 
 message(STATUS "PCL VERSION -> " ${PCL_VERSION})
 

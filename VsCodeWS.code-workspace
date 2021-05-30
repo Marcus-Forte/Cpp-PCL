@@ -85,7 +85,14 @@
 			"codecvt": "cpp",
 			"__nullptr": "cpp",
 			"*.bak": "cpp",
-			"__functional_03": "cpp"
+			"__functional_03": "cpp",
+			"__bit_reference": "cpp",
+			"__debug": "cpp",
+			"__functional_base": "cpp",
+			"__split_buffer": "cpp",
+			"__threading_support": "cpp",
+			"ios": "cpp",
+			"locale": "cpp"
 		}
 	}
 }

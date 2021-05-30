@@ -8,7 +8,10 @@ find_package(OpenMP)
 # 
 
 set (LibraryName "my_icp")
-add_library (${LibraryName} src/my/my_icp.cpp src/my/my_correspondence_estimator.cpp)
+add_library (${LibraryName} 
+ src/my/my_icp.cpp
+ src/my/my_correspondence_estimator.cpp
+ src/my/my_transform_normals.cpp)
 
 
 add_executable(features src/features_app.cpp)

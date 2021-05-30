@@ -26,6 +26,58 @@ using GeometryHandler = pcl::visualization::PointCloudGeometryHandler<pcl::PCLPo
 using GeometryHandlerPtr = GeometryHandler::Ptr;
 using GeometryHandlerConstPtr = GeometryHandler::ConstPtr;
 
+void keyCallback(const pcl::visualization::KeyboardEvent &event, void *cookie)
+{
+    pcl::visualization::PCLVisualizer *viewer = (pcl::visualization::PCLVisualizer *)cookie;
+    pcl::visualization::Camera c0;
+    viewer->getCameraParameters(c0);
+
+
+    // orientation
+    float dx = c0.focal[0] - c0.pos[0];
+    float dy = c0.focal[1] - c0.pos[1];
+    float dz = c0.focal[2] - c0.pos[2];
+
+    float norm = sqrtf(dx * dx + dy * dy + dz * dz);
+    dx /= norm;
+    dy /= norm;
+    dz /= norm;
+    // std::cout << dx << "," << dy << "," << dz << std::endl;
+    float vel = 1;
+
+    std::string keyName = event.getKeySym();
+
+    if (keyName == "Up" && event.keyDown())
+    {
+        c0.pos[0] += dx * vel;
+        c0.pos[1] += dy * vel;
+        c0.pos[2] += dz * vel;
+
+        c0.focal[0] = c0.pos[0] + dx*2;
+        c0.focal[1] = c0.pos[1] + dy*2;
+        c0.focal[2] = c0.pos[2] + dz*2;
+
+        viewer->setCameraParameters(c0);
+    }
+    else if (keyName == "Down" && event.keyDown())
+    {
+        c0.pos[0] -= dx * vel;
+        c0.pos[1] -= dy * vel;
+        c0.pos[2] -= dz * vel;
+
+        c0.focal[0] = c0.pos[0] + dx*2;
+        c0.focal[1] = c0.pos[1] + dy*2;
+        c0.focal[2] = c0.pos[2] + dz*2;
+        viewer->setCameraParameters(c0);
+    }
+    else if (keyName == "Left" && event.keyDown())
+    {
+    }
+    else if (keyName == "Right" && event.keyDown())
+    {
+    }
+}
+
 void make_grid(pcl::visualization::PCLVisualizer &viewer, float res = 1)
 {
 	float x_min = -10;
@@ -99,7 +151,7 @@ int main(int argc, char **argv)
 	// viewer.setBackgroundColor(0, 0, 0, v1);
 	// viewer.addCoordinateSystem(1, "ref", v1);
 	viewer.registerPointPickingCallback(pp_callback);
-	// viewer.registerKeyboardCallback(keyCallback);
+	viewer.registerKeyboardCallback(keyCallback,&viewer);
 	make_grid(viewer, 1);
 
 	int n_clouds = argc - 1;
