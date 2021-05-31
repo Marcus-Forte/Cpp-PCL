@@ -34,12 +34,12 @@ void MyTransformNormals<PointSource, PointTarget, MatScalar>::estimateRigidTrans
     Matrix3 Rxy_z;
     Matrix3 Rxyz_;
 
-    MatScalar damping = 1;
+    MatScalar damping = 0.25;
 
     parameters.setConstant(6, 0); // Init
     Hessian.setZero();
     Residuals.setZero();
-    for (int j = 0; j < 4; ++j)
+    for (int j = 0; j < 10; ++j)
     {
 
         Vector3 translation(parameters(0), parameters(1), parameters(2));
@@ -122,7 +122,7 @@ void MyTransformNormals<PointSource, PointTarget, MatScalar>::estimateRigidTrans
             // Residuals += Jacobian.transpose() * error;
         }
         
-        damping *= 0.5;
+        damping *= 1.2;
         Hessian = Jacobian.transpose() * Jacobian; // 
         MatrixX diagonal = damping * Hessian.diagonal().asDiagonal();
         Hessian = Hessian + diagonal;

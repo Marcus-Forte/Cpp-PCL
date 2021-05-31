@@ -15,7 +15,7 @@ add_library (${LibraryName} SHARED
 
 
 add_executable(features src/features_app.cpp)
-add_executable(registration src/registration.cpp)
+# add_executable(registration src/registration.cpp)
 add_executable(my_registration src/my_registration.cpp)
 
 target_link_libraries(my_registration ${LibraryName})

@@ -41,7 +41,6 @@ void keyCallback(const pcl::visualization::KeyboardEvent &event, void *cookie)
     pcl::visualization::Camera c0;
     viewer->getCameraParameters(c0);
 
-
     // orientation
     float dx = c0.focal[0] - c0.pos[0];
     float dy = c0.focal[1] - c0.pos[1];
@@ -62,9 +61,9 @@ void keyCallback(const pcl::visualization::KeyboardEvent &event, void *cookie)
         c0.pos[1] += dy * vel;
         c0.pos[2] += dz * vel;
 
-        c0.focal[0] = c0.pos[0] + dx*2;
-        c0.focal[1] = c0.pos[1] + dy*2;
-        c0.focal[2] = c0.pos[2] + dz*2;
+        c0.focal[0] = c0.pos[0] + dx * 2;
+        c0.focal[1] = c0.pos[1] + dy * 2;
+        c0.focal[2] = c0.pos[2] + dz * 2;
 
         viewer->setCameraParameters(c0);
     }
@@ -74,9 +73,9 @@ void keyCallback(const pcl::visualization::KeyboardEvent &event, void *cookie)
         c0.pos[1] -= dy * vel;
         c0.pos[2] -= dz * vel;
 
-        c0.focal[0] = c0.pos[0] + dx*2;
-        c0.focal[1] = c0.pos[1] + dy*2;
-        c0.focal[2] = c0.pos[2] + dz*2;
+        c0.focal[0] = c0.pos[0] + dx * 2;
+        c0.focal[1] = c0.pos[1] + dy * 2;
+        c0.focal[2] = c0.pos[2] + dz * 2;
         viewer->setCameraParameters(c0);
     }
     else if (keyName == "Left" && event.keyDown())
@@ -156,7 +155,7 @@ int main(int argc, char **argv)
     Eigen::Matrix4f guess;
     Eigen::Matrix4f aligned_gn_transform;
     Eigen::Matrix4f aligned_transform;
-    guess << 1, 0, 0, 25, 0, 1, 0, 0.3, 0, 0, 1, -1.5, 0, 0, 0, 1;
+    guess << 1, 0, 0, 24, 0, 1, 0, 0.3, 0, 0, 1, -1.5, 0, 0, 0, 1;
     // guess.setIdentity();
     // std::cout << guess << std::endl;
 
@@ -176,13 +175,13 @@ int main(int argc, char **argv)
     // PCL_INFO("Alignment time G-N: %f\n", (float)elapsed / CLOCKS_PER_SEC);
     // PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
-    // start = clock();
-    // transform_.reset(new pcl::registration::TransformationEstimationPointToPlane<PointT, PointT>);
-    // reg.setTransformationEstimation(transform_);
-    // reg.align(*aligned);
-    // elapsed = clock() - start;
-    // PCL_INFO("Alignment time LM Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
-    // PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+    start = clock();
+    transform_.reset(new pcl::registration::TransformationEstimationPointToPlane<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned, guess);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time LM Normals: %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
     start = clock();
     transform_.reset(new pcl::registration::TransformationEstimationPointToPlaneLLS<PointT, PointT>);
@@ -193,13 +192,13 @@ int main(int argc, char **argv)
     PCL_INFO("Alignment time: Normals LLS %f\n", (float)elapsed / CLOCKS_PER_SEC);
     PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
-    // start = clock();
-    // transform_.reset(new pcl::registration::TransformationEstimationDualQuaternion<PointT, PointT>);
-    // reg.setTransformationEstimation(transform_);
-    // reg.align(*aligned);
-    // elapsed = clock() - start;
-    // PCL_INFO("Alignment time: Dual Quat %f\n", (float)elapsed / CLOCKS_PER_SEC);
-    // PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
+    start = clock();
+    transform_.reset(new pcl::registration::TransformationEstimationDualQuaternion<PointT, PointT>);
+    reg.setTransformationEstimation(transform_);
+    reg.align(*aligned, guess);
+    elapsed = clock() - start;
+    PCL_INFO("Alignment time: Dual Quat %f\n", (float)elapsed / CLOCKS_PER_SEC);
+    PCL_INFO("Fitness: %f\n", reg.getFitnessScore());
 
     start = clock();
     transform_.reset(new MyTransformNormals<PointT, PointT>);
@@ -217,6 +216,7 @@ int main(int argc, char **argv)
     pcl::transformPointCloud(*full_source, *aligned_gn, aligned_gn_transform);
 
     pcl::visualization::PCLVisualizer viewer("Viewer");
+    pcl::visualization::PCLVisualizer viewer_big("Viewer_big");
     // std::cin.get();
 
     int vp0, vp1, vp2;
@@ -226,7 +226,8 @@ int main(int argc, char **argv)
     viewer.addPointCloud<PointT>(target, "target", 0);
     viewer.addPointCloudNormals<PointT>(target, 50, 0.1, "target_n", 0);
 
-    viewer.addPointCloud<PointT>(source, "source", vp0);
+    pcl::transformPointCloud(*full_source, *full_source, guess);
+    viewer.addPointCloud<PointT>(full_source, "source", vp0);
     viewer.addPointCloud<PointT>(aligned, "aligned", vp1);
     viewer.addPointCloud<PointT>(aligned_gn, "aligned_gn", vp2);
 
@@ -243,10 +244,19 @@ int main(int argc, char **argv)
 
     viewer.registerKeyboardCallback(keyCallback, &viewer);
 
-    while (!viewer.wasStopped())
-    {
-        viewer.spin();
-    }
+    viewer_big.addPointCloud<PointT>(full_source, "source");
+    viewer_big.addPointCloud<PointT>(aligned_gn, "aligned_gn");
+    viewer_big.addPointCloud<PointT>(target, "target");
 
-    return 0;
+    viewer_big.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "target");
+    viewer_big.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "source");
+    viewer_big.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "aligned_gn");
+    viewer_big.registerKeyboardCallback(keyCallback,&viewer_big);
+
+
+    while (!viewer.wasStopped() && !viewer_big.wasStopped())
+    {
+        viewer.spinOnce(500);
+        viewer_big.spinOnce(500);
+    }
 }
