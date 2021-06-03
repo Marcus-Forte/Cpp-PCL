@@ -179,5 +179,6 @@ bool MyCorrespondenceEstimation<PointSource, PointTarget, Scalar>::initCompute()
     return (pcl::PCLBase<PointSource>::initCompute());
 }
 
+
 // instantiation TODO como contornar isso ?
-template class MyCorrespondenceEstimation<pcl::PointXYZINormal, pcl::PointXYZINormal, float>;
+template class PCL_EXPORTS MyCorrespondenceEstimation<pcl::PointXYZINormal, pcl::PointXYZINormal, float>;
