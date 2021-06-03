@@ -7,8 +7,8 @@
 #include <pcl/registration/registration.h>
 #include <pcl/registration/default_convergence_criteria.h>
 
-#include "my_transform_normals.h" // mudar para .h
-#include "my_correspondence_estimator.h"
+#include "transform_normals.h" // mudar para .h
+#include "correspondence_estimator.h"
 
 template <typename PointSource, typename PointTarget, typename Scalar = float>
 class MyRegistration : public pcl::Registration<PointSource, PointTarget, Scalar>

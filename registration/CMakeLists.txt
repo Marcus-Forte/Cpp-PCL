@@ -7,11 +7,12 @@ find_package(OpenMP)
 # include_directories(${OpenMP_INCLUDE_DIRS})
 # 
 
-set (LibraryName "my_icp")
+set (LibraryName "duna_matching")
+
 add_library (${LibraryName} SHARED
- src/my/my_icp.cpp
- src/my/my_correspondence_estimator.cpp
- src/my/my_transform_normals.cpp)
+ src/duna/icp.cpp
+ src/duna/correspondence_estimator.cpp
+ src/duna/transform_normals.cpp)
 
 
 add_executable(features src/features_app.cpp)
@@ -28,8 +29,8 @@ target_link_libraries(my_registration ${LibraryName})
 install(TARGETS ${LibraryName} 
         DESTINATION lib)
 
-file(GLOB header_files "${CMAKE_CURRENT_SOURCE_DIR}/src/my/*.h")
-file(GLOB header_files_ "${CMAKE_CURRENT_SOURCE_DIR}/src/my/*.hpp")
+file(GLOB header_files "${CMAKE_CURRENT_SOURCE_DIR}/src/duna/*.h")
+file(GLOB header_files_ "${CMAKE_CURRENT_SOURCE_DIR}/src/duna/*.hpp")
 
 install(FILES ${header_files_} ${header_files}
         DESTINATION include/${LibraryName} 

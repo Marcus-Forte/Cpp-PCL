@@ -1,4 +1,4 @@
-#include "my_icp.h"
+#include "icp.h"
 
 // IMPLEMENTATIONS
 

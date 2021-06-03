@@ -1,5 +1,5 @@
 
-#include "my_correspondence_estimator.h"
+#include "correspondence_estimator.h"
 
 template <typename PointSource, typename PointTarget, typename Scalar>
 void MyCorrespondenceEstimation<PointSource, PointTarget, Scalar>::determineCorrespondences(

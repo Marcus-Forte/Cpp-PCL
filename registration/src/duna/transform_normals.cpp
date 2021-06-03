@@ -1,4 +1,4 @@
-#include "my_transform_normals.h"
+#include "transform_normals.h"
 
 template <typename PointSource, typename PointTarget, typename MatScalar>
 void MyTransformNormals<PointSource, PointTarget, MatScalar>::estimateRigidTransformation(
