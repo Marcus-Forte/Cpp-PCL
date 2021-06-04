@@ -1,6 +1,11 @@
 #pragma once
+
 #include "pcl/point_cloud.h"
 #include "pcl/search/kdtree.h"
+#include "pcl/features/normal_3d.h"
+#include "pcl/common/transforms.h"
+#include "pcl/correspondence.h"
+#include "pcl/registration/default_convergence_criteria.h"
 // #include <pcl/kdtree/kdtree_flann.h>
 
 namespace duna
@@ -35,11 +40,22 @@ namespace duna
             kn_corner_neighboors = 5;
             kn_surface_neighboors = 8;
 
-            max_iterations = 100;
+            max_iterations_ = 10;
 
             KdTree_corn_ok = false;
             KdTree_surf_ok = false;
             final_transformation_.setIdentity();
+
+            surfaces_correspondences.reset(new pcl::Correspondences);
+            corners_correspondences.reset(new pcl::Correspondences);
+
+            // Parameters
+            euclidean_fitness_epsilon_ = -std::numeric_limits<double>::max();
+            min_number_correspondences_ = 3;
+            transformation_epsilon_ = 0;
+            transformation_rotation_epsilon_ = 0;
+
+            convergence_criteria_.reset(new pcl::registration::DefaultConvergenceCriteria<Scalar>(nr_iterations_, transformation_, *surfaces_correspondences));
         }
 
         inline void setInputCorners(const PointCloudTConstPtr &corner_cloud)
@@ -95,18 +111,17 @@ namespace duna
             KdTree_surf_ok = true;
         }
 
-        inline void setMaxCorrDist(const float &dist)
-        {
-            max_corr_dist = dist;
-        }
-
-        inline void setMaximumIterations(const int max)
-        {
-            max_iterations = max;
-        }
-
         // TODO Set Parameters
 
+        inline void setMaxCorrDist(const float &dist) { max_corr_dist = dist; }
+
+        inline void setMaximumIterations(const int max) { max_iterations_ = max; }
+
+        inline void setTransformationEpsilon(double epsilon) { transformation_epsilon_ = epsilon; }
+
+        inline void setTransformationRotationEpsilon(double epsilon) { transformation_rotation_epsilon_ = epsilon; }
+
+        inline bool hasConverged() const { return (converged_); }
         void align();
 
         void align(const Matrix4 &guess);
@@ -126,7 +141,15 @@ namespace duna
         PointCloudTConstPtr target_corners;
         PointCloudTConstPtr target_surfaces;
 
+        pcl::CorrespondencesPtr surfaces_correspondences;
+        pcl::CorrespondencesPtr corners_correspondences;
+
+        bool KdTree_surf_ok;
+        bool KdTree_corn_ok;
+
         PointCloudTPtr target_sufraces_modifiable;
+
+        // TODO Parameters
 
         /** \brief The final transformation matrix estimated by the registration method after N iterations. */
         Matrix4 final_transformation_;
@@ -134,14 +157,44 @@ namespace duna
         /** \brief The transformation matrix estimated by the registration method. */
         Matrix4 transformation_;
 
-        bool KdTree_surf_ok;
-        bool KdTree_corn_ok;
-
-        // TODO Parameters
         Scalar max_corr_dist;
+
         unsigned int kn_corner_neighboors;
         unsigned int kn_surface_neighboors;
-        unsigned int max_iterations;
+
+        /** \brief The maximum difference between two consecutive transformations in order to consider convergence 
+        * (user defined). 
+        */
+        double transformation_epsilon_;
+
+        /** \brief The maximum allowed Euclidean error between two consecutive steps in the ICP loop, before the 
+        * algorithm is considered to have converged. The error is estimated as the sum of the differences between 
+        * correspondences in an Euclidean sense, divided by the number of correspondences.
+        */
+        double euclidean_fitness_epsilon_;
+
+        /** \brief The minimum number of correspondences that the algorithm needs before attempting to estimate the 
+        * transformation. The default value is 3.
+        */
+        int min_number_correspondences_;
+
+        /** \brief The maximum rotation difference between two consecutive transformations in order to consider convergence
+        * (user defined).
+        */
+        double transformation_rotation_epsilon_;
+
+        /** \brief The number of iterations the internal optimization ran for (used internally). */
+        int nr_iterations_;
+
+        /** \brief The maximum number of iterations the internal optimization should run for.
+        * The default value is 10.
+        */
+        int max_iterations_;
+
+        /** \brief Holds internal convergence state, given user parameters. */
+        bool converged_;
+
+        typename pcl::registration::DefaultConvergenceCriteria<Scalar>::Ptr convergence_criteria_;
 
     protected:
     };

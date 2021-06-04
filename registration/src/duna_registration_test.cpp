@@ -1,6 +1,10 @@
+#define PCL_NO_PRECOMPILE
 #include "duna/feature_registration.h"
-#include "pcl/registration/icp.h"
 
+#include "duna/feature_point.h"
+
+#include "pcl/registration/icp.h"
+#include <pcl/point_types.h>
 #include <pcl/filters/voxel_grid.h>
 #include "pcl/features/normal_3d.h"
 #include "pcl/common/transforms.h"
@@ -10,6 +14,8 @@
 
 using PointT = pcl::PointXYZINormal;
 using PointCloudT = pcl::PointCloud<PointT>;
+
+using PointT2 = duna::PointXYZINormalFeature;
 
 int main(int argc, char **argv)
 {
@@ -52,53 +58,70 @@ int main(int argc, char **argv)
     // duna::extractFeatures<PointT>(*full_source,*corners, *surfaces);
     duna::Registration<PointT>::extractFeatures(*full_source, *corners, *surfaces);
 
-    pcl::search::KdTree<PointT>::Ptr corners_tree(new pcl::search::KdTree<PointT>);
-    pcl::search::KdTree<PointT>::Ptr surfaces_tree(new pcl::search::KdTree<PointT>);
-
-    corners_tree->setInputCloud(corners);
-    surfaces_tree->setInputCloud(surfaces);
-
     pcl::VoxelGrid<PointT> voxel;
     voxel.setInputCloud(surface_map);
     voxel.setLeafSize(0.1, 0.1, 0.1);
     voxel.filter(*surface_map);
 
+    voxel.setInputCloud(corner_map);
+    voxel.setLeafSize(0.1, 0.1, 0.1);
+    voxel.filter(*corner_map);
+
+    voxel.setInputCloud(full_source);
+    voxel.setLeafSize(0.1, 0.1, 0.1);
+    voxel.filter(*full_source);
+
+    // KDTree
+    pcl::search::KdTree<PointT>::Ptr corners_tree(new pcl::search::KdTree<PointT>);
+    pcl::search::KdTree<PointT>::Ptr surfaces_tree(new pcl::search::KdTree<PointT>);
+    corners_tree->setInputCloud(corner_map);
+    surfaces_tree->setInputCloud(surface_map);
+
+
+    // Normal
     pcl::NormalEstimation<PointT, PointT> ne;
     ne.setInputCloud(surface_map);
-    ne.setKSearch(5);
-    // ne.compute(*surface_map);
+    ne.setKSearch(8);
+    ne.compute(*surface_map);
 
+
+    // Duna Registration
     duna::Registration<PointT> registration;
+    registration.setTargetCornersSearchMethod(corners_tree, false);
+    registration.setTargetSurfacesSearchMethod(surfaces_tree, false);
     registration.setMaxCorrDist(7);
     registration.setInputCorners(corners);
     registration.setInputSurfaces(surfaces);
     registration.setTargetCorners(corner_map);
     registration.setTargetSurfaces(surface_map);
     registration.setMaximumIterations(100);
-    registration.setTargetCornersSearchMethod(corners_tree, true);
-    registration.setTargetSurfacesSearchMethod(surfaces_tree, true);
+    registration.setTransformationEpsilon(1e-8);
+
     // Set Parameters
     Eigen::Matrix4f guess;
     guess << 1, 0, 0, 24, 0, 1, 0, 0.3, 0, 0, 1, -1.5, 0, 0, 0, 1;
     clock_t start = clock();
     registration.align(guess);
     clock_t elapsed = clock() - start;
+    std::cout << "Duna Align time: " << (float)elapsed / CLOCKS_PER_SEC << std::endl;
 
     pcl::IterativeClosestPoint<PointT, PointT> icp;
     icp.setInputSource(surfaces);
     icp.setInputTarget(surface_map);
     icp.setMaximumIterations(100);
-    icp.setMaxCorrespondenceDistance(5);
-    icp.setTransformationEpsilon(1e-6);
+    icp.setMaxCorrespondenceDistance(7);
+    icp.setTransformationEpsilon(1e-8);
     pcl::registration::TransformationEstimation<PointT, PointT>::Ptr transform_;
     transform_.reset(new pcl::registration::TransformationEstimationPointToPlaneLLS<PointT, PointT>);
     PointCloudT surface_tf_icp;
-    // icp.align(surface_tf_icp, guess);
+    start = clock();
+    icp.align(surface_tf_icp, guess);
+    elapsed = clock() - start;
+    std::cout << "ICP Align time: " << (float)elapsed / CLOCKS_PER_SEC << std::endl;
     Eigen::MatrixX4f final_transform_icp = icp.getFinalTransformation();
 
     Eigen::MatrixX4f final_transform = registration.getFinalTransformation();
 
-    std::cout << "Align time: " << (float)elapsed / CLOCKS_PER_SEC << std::endl;
     std::cout << final_transform << std::endl;
     std::cout << final_transform_icp << std::endl;
 
@@ -127,7 +150,7 @@ int main(int argc, char **argv)
 
     // viewer.addPointCloud<pcl::PointXYZINormal>(corners_tf,"corners_tf");
     viewer.addPointCloud<pcl::PointXYZINormal>(surfaces_tf, "surfaces_tf");
-    
+
     viewer.addPointCloudNormals<pcl::PointXYZINormal>(surface_map, 1, 0.1, "surface_normals");
     // viewer.addPointCloud<pcl::PointXYZINormal>(corner_map,"corner_map");
 
@@ -137,7 +160,7 @@ int main(int argc, char **argv)
 
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 1, 0, "surfaces_tf");
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "surfaces_tf");
-    
+
     viewer.spin();
 
     return 0;

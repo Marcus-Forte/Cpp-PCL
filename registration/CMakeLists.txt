@@ -1,6 +1,6 @@
 # set (CMAKE_BUILD_TYPE RelWithDebInfo)
 
-set (CMAKE_BUILD_TYPE Debug)
+set (CMAKE_BUILD_TYPE Release)
 
 find_package(OpenCV )
 

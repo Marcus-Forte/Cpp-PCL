@@ -1,10 +1,5 @@
 #include "feature_registration.h"
-#include "opencv2/opencv.hpp"
-#include "pcl/point_types.h"
-
-#include "pcl/features/normal_3d.h"
-#include "pcl/common/transforms.h"
-#include "pcl/correspondence.h"
+#include "opencv2/opencv.hpp" // TODO mudar
 
 #include <pcl/visualization/pcl_visualizer.h>
 
@@ -34,22 +29,16 @@ namespace duna
             corner_tree->setInputCloud(target_corners);
         }
 
-        // pcl::IndicesPtr corners_correspondences(new pcl::Indices(kn_corner_neighboors));
-        // pcl::IndicesPtr surfaces_correspondences(new pcl::Indices(kn_surface_neighboors));
-
-        pcl::Indices corners_correspondences;        
-        pcl::Indices surfaces_correspondences;
-
+        pcl::Indices corners_correspondences_indices;
+        pcl::Indices surfaces_correspondences_indices;
 
         std::vector<float> corners_correspondences_dists;
         std::vector<float> surfaces_correspondences_dists;
 
-        pcl::CorrespondencesPtr correspondences(new pcl::Correspondences);
-
         PointCloudTPtr transformed_corners(new PointCloudT);
         PointCloudTPtr transformed_surfaces(new PointCloudT);
 
-        pcl::visualization::PCLVisualizer viewer("registration");
+        // pcl::visualization::PCLVisualizer viewer("registration");
 
         final_transformation_ = guess;
 
@@ -72,19 +61,27 @@ namespace duna
 
         transformation_ = Matrix4::Identity();
 
-        viewer.addPointCloud<PointT>(target_surfaces, "target");
-        viewer.addPointCloud<PointT>(transformed_surfaces, "tf_surface");
+        // viewer.addPointCloud<PointT>(target_surfaces, "target");
+        // viewer.addPointCloud<PointT>(transformed_surfaces, "tf_surface");
+
+        nr_iterations_ = 0;
+        converged_ = false;
+
+        convergence_criteria_->setMaximumIterations(max_iterations_);
+        convergence_criteria_->setRelativeMSE(euclidean_fitness_epsilon_);
+        convergence_criteria_->setTranslationThreshold(transformation_epsilon_);
+        if (transformation_rotation_epsilon_ > 0)
+            convergence_criteria_->setRotationThreshold(transformation_rotation_epsilon_);
+        else
+            convergence_criteria_->setRotationThreshold(1.0 - transformation_epsilon_);
 
         // TODO registration loop
-        for (int iteration = 0; iteration < max_iterations; ++iteration)
+        do
         {
 
-            viewer.updatePointCloud<PointT>(transformed_surfaces, "tf_surface");
-            viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "tf_surface");
-            viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "tf_surface");
-
-            std::cout << "Final Transformation: \n"
-                      << final_transformation_ << std::endl;
+            // viewer.updatePointCloud<PointT>(transformed_surfaces, "tf_surface");
+            // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "tf_surface");
+            // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "tf_surface");
 
             // TODO Find Correspondences
 
@@ -93,52 +90,58 @@ namespace duna
             //     const PointT &pointSel = transformed_corners.points[j];
             //     corner_tree->nearestKSearch(pointSel, corner_neighboors, *corners_correspondences, corners_correspondences_dists);
             // }
-            correspondences->clear();
-            viewer.removeAllShapes();
+
+            surfaces_correspondences->clear();
+            // viewer.removeAllShapes();
             for (int j = 0; j < transformed_surfaces->size(); ++j)
             {
                 const PointT &pointSel = transformed_surfaces->points[j];
-                surf_tree->nearestKSearch(pointSel, kn_surface_neighboors, surfaces_correspondences, surfaces_correspondences_dists);
+                surf_tree->nearestKSearch(pointSel, kn_surface_neighboors, surfaces_correspondences_indices, surfaces_correspondences_dists);
                 if (surfaces_correspondences_dists[0] > max_corr_dist)
                 {
                     continue;
                 }
                 pcl::Correspondence corr;
                 corr.index_query = j;
-                corr.index_match = surfaces_correspondences[0];
+                corr.index_match = surfaces_correspondences_indices[0];
                 corr.distance = surfaces_correspondences_dists[0];
-                correspondences->push_back(corr);
+                surfaces_correspondences->push_back(corr);
 
                 // source_corrs->push_back(pointSel);
                 // target_corrs->push_back(target_surfaces->points[(*surfaces_correspondences)[0]]);
 
                 Eigen::Vector4f normal;
                 float unused;
-                const PointT &probe = target_surfaces->points[surfaces_correspondences[0]];
+                const PointT &probe = target_surfaces->points[surfaces_correspondences_indices[0]];
                 if (probe.normal_x == 0 && probe.normal_y == 0 && probe.normal_z == 0)
                 {
                     // PCL_DEBUG("Updating normals ");
-                    pcl::computePointNormal(*target_surfaces, surfaces_correspondences, normal, unused);
+                    pcl::computePointNormal(*target_surfaces, surfaces_correspondences_indices, normal, unused);
                     // PCL_DEBUG("ok!-> %f %f %f\n",normal[0],normal[1],normal[2]);
 
-                    target_sufraces_modifiable->points[surfaces_correspondences[0]].normal_x = normal[0];
-                    target_sufraces_modifiable->points[surfaces_correspondences[0]].normal_y = normal[1];
-                    target_sufraces_modifiable->points[surfaces_correspondences[0]].normal_z = normal[2];
+                    target_sufraces_modifiable->points[surfaces_correspondences_indices[0]].normal_x = normal[0];
+                    target_sufraces_modifiable->points[surfaces_correspondences_indices[0]].normal_y = normal[1];
+                    target_sufraces_modifiable->points[surfaces_correspondences_indices[0]].normal_z = normal[2];
                 }
-                // pcl::computePointNormal(*input_surfaces, *surfaces_correspondences, normal, unused);
-                // PCL_DEBUG("pt: %d ",(*surfaces_correspondences)[0]);
-                // target_sufraces_modifiable->points[(*surfaces_correspondences)[0]].normal_x = normal[0];
-                // target_sufraces_modifiable->points[(*surfaces_correspondences)[0]].normal_y = normal[1];
-                // target_sufraces_modifiable->points[(*surfaces_correspondences)[0]].normal_z = normal[2];
-                viewer.addLine<PointT, PointT>(pointSel, target_surfaces->points[surfaces_correspondences[0]], 1, 0, 0, "arrow" + std::to_string(j));
+
+                // viewer.addLine<PointT, PointT>(pointSel, target_surfaces->points[surfaces_correspondences_indices[0]], 1, 0, 0, "arrow" + std::to_string(j));
             }
-            viewer.removePointCloud("surface_normals");
-            viewer.addPointCloudNormals<PointT>(target_surfaces, 1, 0.1, "surface_normals");
-            viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0,1,0 , "surface_normals");
-            viewer.spin();
+            // viewer.removePointCloud("surface_normals");
+            // viewer.addPointCloudNormals<PointT>(target_surfaces, 1, 0.1, "surface_normals");
+            // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "surface_normals");
+            // viewer.spin();
+
+            int n_pts = surfaces_correspondences->size();
+
+            if (n_pts < min_number_correspondences_)
+            {
+                PCL_ERROR("[pcl::%s::computeTransformation] Not enough correspondences found. Relax your threshold parameters.\n", "duna_matching");
+                convergence_criteria_->setConvergenceState(pcl::registration::DefaultConvergenceCriteria<Scalar>::CONVERGENCE_CRITERIA_NO_CORRESPONDENCES);
+                converged_ = false;
+                break;
+            }
 
             // TODO optimization loop
-            int n_pts = correspondences->size();
             // x y z ax ay az
             VectorX parameters(6);
 
@@ -170,7 +173,7 @@ namespace duna
             Hessian.setZero();
             Residuals.setZero();
 
-            for (int j = 0; j < 5; ++j)
+            for (int j = 0; j < 3; ++j)
             {
 
                 Vector3 translation(parameters(0), parameters(1), parameters(2));
@@ -213,12 +216,12 @@ namespace duna
                 Rxy_z = Rz * Ry_ * Rx;
                 Rxyz_ = Rz_ * Ry * Rx;
 
-                PCL_DEBUG("Surf corrs: %d\n", correspondences->size());
+                PCL_DEBUG("Surf corrs: %d\n", n_pts);
                 for (int i = 0; i < n_pts; i++)
                 {
 
-                    const int src_index = (*correspondences)[i].index_query;
-                    const int tgt_index = (*correspondences)[i].index_match;
+                    const int src_index = (*surfaces_correspondences)[i].index_query;
+                    const int tgt_index = (*surfaces_correspondences)[i].index_match;
 
                     // PCL_DEBUG("src :%d -> %d: tgt d: %f\n", src_index, tgt_index, (*correspondences)[i].distance);
 
@@ -281,8 +284,6 @@ namespace duna
             q.w() = static_cast<Scalar>(std::sqrt(1 - q.dot(q)));
             q.normalize();
             transformation_.topLeftCorner(3, 3) = q.toRotationMatrix();
-            std::cout << "Incr. Matrix: \n"
-                      << transformation_ << std::endl;
 
             // Transform the data
             pcl::transformPointCloud(*transformed_surfaces, *transformed_surfaces, transformation_);
@@ -290,7 +291,11 @@ namespace duna
 
             // Obtain the final transformation
             final_transformation_ = transformation_ * final_transformation_;
-        }
+
+            nr_iterations_++;
+
+            converged_ = static_cast<bool>((*convergence_criteria_));
+        } while (convergence_criteria_->getConvergenceState() == pcl::registration::DefaultConvergenceCriteria<Scalar>::CONVERGENCE_CRITERIA_NOT_CONVERGED);
     }
 
     // TODO usar PCL, e nao OPENCV
@@ -758,5 +763,4 @@ namespace duna
     }
 
     template class PCL_EXPORTS Registration<pcl::PointXYZINormal, float>;
-
 }
