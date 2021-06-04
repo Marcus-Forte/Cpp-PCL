@@ -11,12 +11,13 @@
 
 #include "PCUtils.h"
 
-typedef pcl::PointCloud<pcl::PointXYZRGB> CloudType;
+using PointT = pcl::PointXYZ;
+using PointCloudT = pcl::PointCloud<PointT>;
 
 int main(int argc, char **argv)
 {
 
-	CloudType::Ptr cloud(new CloudType);
+	PointCloudT::Ptr cloud(new PointCloudT);
 
 	if (argc < 5)
 	{
@@ -26,10 +27,51 @@ int main(int argc, char **argv)
 	}
 
 	std::cout << "Loading input point clouds..." << std::endl;
-	if (pcl::io::loadPCDFile(argv[1], *cloud) != 0)
+	if (PCUtils::readFile(argv[1], *cloud) != 0)
 		exit(-1);
 
 	std::cout << "Loaded: " << cloud->size() << " points." << std::endl;
+
+	PointCloudT::Ptr cloud_filtered(new PointCloudT);
+	PointCloudT::Ptr cloud_filtered2(new PointCloudT); //Voxel Grid
+	PointCloudT::Ptr cloud_filtered3(new PointCloudT); // SOR Filter
+
+	clock_t start = start, end;
+
+	float res = atof(argv[2]);
+	std::cout << "res = " << res << std::endl;
+	start = clock();
+	std::cout << "Computing Grid Minimum..." << std::endl;
+	pcl::GridMinimum<PointT> grid(res); //resolution
+	grid.setInputCloud(cloud);
+	grid.filter(*cloud_filtered);
+	end = clock();
+	std::cout << "OK! Number of points: " << cloud_filtered->size() << "( " << (float)(end - start) / CLOCKS_PER_SEC << " s)" << std::endl;
+	//
+
+	start = clock();
+	std::cout << "Computing Voxel Grid..." << std::endl;
+	pcl::VoxelGrid<PointT> voxel;
+	voxel.setInputCloud(cloud);
+	voxel.setLeafSize(res, res, res);
+	voxel.filter(*cloud_filtered2);
+	end = clock();
+	std::cout << "OK! Number of points: " << cloud_filtered2->size() << "( " << (float)(end - start) / CLOCKS_PER_SEC << " s)" << std::endl;
+	//
+	// MeanK = 200, StdThresh = 5 for stockpile
+	if (atoi(argv[3]) != 0.0)
+	{
+		start = clock();
+		std::cout << "Computing SOR..." << std::endl;
+		pcl::StatisticalOutlierRemoval<PointT> sor;
+		sor.setInputCloud(cloud);
+		sor.setMeanK(atoi(argv[3]));
+		sor.setStddevMulThresh(atof(argv[4]));
+		sor.filter(*cloud_filtered3);
+		end = clock();
+		std::cout << "OK! Number of points: " << cloud_filtered3->size() << "( " << (float)(end - start) / CLOCKS_PER_SEC << " s)" << std::endl;
+	}
+
 	// cloudname
 	std::string arg(argv[1]);
 	std::string grid_cloudname, voxel_cloudname, sor_cloudname;
@@ -39,103 +81,13 @@ int main(int argc, char **argv)
 	voxel_cloudname = arg.substr(slash + 1, dot - slash - 1) + "_" + "voxeled.pcd";
 	sor_cloudname = arg.substr(slash + 1, dot - slash - 1) + "_" + "sored.pcd";
 
-	CloudType::Ptr cloud_filtered(new CloudType);
-	CloudType::Ptr cloud_filtered2(new CloudType); //Voxel Grid
-	CloudType::Ptr cloud_filtered3(new CloudType); // SOR Filter
-
-	clock_t start = start,end;
-
-	float res = atof(argv[2]);
-	std::cout << "res = " << res << std::endl;
-	start = clock();
-	std::cout << "Computing Grid Minimum..." << std::endl;
-	pcl::GridMinimum<pcl::PointXYZRGB> grid(res); //resolution
-	grid.setInputCloud(cloud);
-	grid.filter(*cloud_filtered);
-	end = clock();
-	std::cout << "OK! Number of points: " << cloud_filtered->size() << "( " << (float)(end-start)/CLOCKS_PER_SEC << " s)" << std::endl;
-	//
-	
-	start = clock();
-	std::cout << "Computing Voxel Grid..." << std::endl;
-	pcl::VoxelGrid<pcl::PointXYZRGB> voxel;
-	voxel.setInputCloud(cloud);
-	voxel.setLeafSize(res, res, res);
-	voxel.filter(*cloud_filtered2);
-	end = clock();
-	std::cout << "OK! Number of points: " << cloud_filtered2->size() << "( " << (float)(end-start)/CLOCKS_PER_SEC << " s)" << std::endl;
-	//
-	// MeanK = 200, StdThresh = 5 for stockpile
-	start = clock();
-	std::cout << "Computing SOR..." << std::endl;
-	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
-	sor.setInputCloud(cloud);
-	sor.setMeanK(atof(argv[3]));
-	sor.setStddevMulThresh(atof(argv[4]));
-	sor.filter(*cloud_filtered3);
-	end = clock();
-	std::cout << "OK! Number of points: " << cloud_filtered3->size() << "( " << (float)(end-start)/CLOCKS_PER_SEC << " s)" << std::endl;
-
-	//Paint pointClouds
-	int max = cloud->size();
-	for (int i = 0; i < max; ++i)
-	{
-
-		PCUtils::setColorMap(i, max, cloud->points[i]);
-	}
-	max = cloud_filtered2->size();
-	for (int i = 0; i < max; ++i)
-	{
-		PCUtils::setColorMap(i, max, cloud_filtered2->points[i]);
-	}
-	max = cloud_filtered3->size();
-	for (int i = 0; i < max; ++i)
-	{
-		PCUtils::setColorMap(i, max, cloud_filtered3->points[i]);
-	}
-	// 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> height_color0(cloud);
-	// 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> height_color1(cloud_filtered2);
-	// 		pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> height_color2(cloud_filtered3);
-
 	std::cout << "Wrting output clouds..." << std::endl;
 	pcl::io::savePCDFileBinary(grid_cloudname, *cloud_filtered);
 	PCL_INFO("subsampled cloud '%s' saved successfully \n", grid_cloudname.c_str());
 	pcl::io::savePCDFileBinary(voxel_cloudname, *cloud_filtered2);
 	PCL_INFO("subsampled cloud '%s' saved successfully \n", voxel_cloudname.c_str());
-	pcl::io::savePCDFileBinary(sor_cloudname, *cloud_filtered3);
-	PCL_INFO("subsampled cloud '%s' saved successfully \n", sor_cloudname.c_str());
-
-	char opt;
-	bool visualize = false;
-	while ((opt = getopt(argc, argv, "v")) != -1)
-	{
-
-		if (opt == 'v')
-			visualize = true;
-	}
-
-	if (visualize)
-	{
-		int v0, v1, v2;
-
-		std::cout << "Opening Visualizer" << std::endl;
-		pcl::visualization::PCLVisualizer::Ptr viewer = pcl::make_shared<pcl::visualization::PCLVisualizer>("Viewer");
-
-		viewer->createViewPort(0, 0, 1, 0.5, v0);
-		viewer->createViewPort(0, 0.5, 0.5, 1, v1);
-		viewer->createViewPort(0.5, 0.5, 1, 1, v2);
-		viewer->addPointCloud<pcl::PointXYZRGB>(cloud, "cloud", v0);
-		viewer->addPointCloud<pcl::PointXYZRGB>(cloud_filtered2, "voxel", v1);
-		viewer->addPointCloud<pcl::PointXYZRGB>(cloud_filtered3, "sor", v2);
-
-		viewer->addCoordinateSystem(1, "origin");
-
-		while (!viewer->wasStopped())
-		{
-
-			viewer->spin();
-		}
-	}
+	// pcl::io::savePCDFileBinary(sor_cloudname, *cloud_filtered3);
+	// PCL_INFO("subsampled cloud '%s' saved successfully \n", sor_cloudname.c_str());
 
 	return 0;
 }

@@ -92,7 +92,11 @@
 			"__split_buffer": "cpp",
 			"__threading_support": "cpp",
 			"ios": "cpp",
-			"locale": "cpp"
+			"locale": "cpp",
+			"__hash_table": "cpp",
+			"__tree": "cpp",
+			"queue": "cpp",
+			"stack": "cpp"
 		}
 	}
 }

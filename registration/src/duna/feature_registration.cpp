@@ -1,9 +1,12 @@
 #include "feature_registration.h"
 #include "opencv2/opencv.hpp"
 #include "pcl/point_types.h"
-#include "pcl/impl/instantiate.hpp"
+
 #include "pcl/features/normal_3d.h"
 #include "pcl/common/transforms.h"
+#include "pcl/correspondence.h"
+
+#include <pcl/visualization/pcl_visualizer.h>
 
 namespace duna
 {
@@ -31,50 +34,262 @@ namespace duna
             corner_tree->setInputCloud(target_corners);
         }
 
-        pcl::IndicesPtr corners_correspondences(new pcl::Indices(corner_neighboors));
-        pcl::IndicesPtr surfaces_correspondences(new pcl::Indices(surface_neighboors));
+        // pcl::IndicesPtr corners_correspondences(new pcl::Indices(kn_corner_neighboors));
+        // pcl::IndicesPtr surfaces_correspondences(new pcl::Indices(kn_surface_neighboors));
 
-        std::vector<float> corners_correspondences_dists(corner_neighboors);
-        std::vector<float> surfaces_correspondences_dists(surface_neighboors);
+        pcl::Indices corners_correspondences;        
+        pcl::Indices surfaces_correspondences;
 
 
-        PointCloudT transformed_corners;
-        PointCloudT transformed_surfaces;
+        std::vector<float> corners_correspondences_dists;
+        std::vector<float> surfaces_correspondences_dists;
 
-        int n_iterations = 5;
-        Matrix4 tf = guess;
-        // TODO registration loop
-        for (int iteration = 0; iteration < n_iterations; ++iteration)
+        pcl::CorrespondencesPtr correspondences(new pcl::Correspondences);
+
+        PointCloudTPtr transformed_corners(new PointCloudT);
+        PointCloudTPtr transformed_surfaces(new PointCloudT);
+
+        pcl::visualization::PCLVisualizer viewer("registration");
+
+        final_transformation_ = guess;
+
+        // If the guessed transformation is non identity
+        if (guess != Matrix4::Identity())
         {
-            pcl::transformPointCloud(*input_corners,transformed_corners,guess);
-            pcl::transformPointCloud(*input_surfaces,transformed_surfaces,guess);
+            transformed_corners->resize(input_corners->size());
+            transformed_surfaces->resize(input_surfaces->size());
+
+            // Apply guessed transformation prior to search for neighbours
+            pcl::transformPointCloud(*input_corners, *transformed_corners, guess);
+            pcl::transformPointCloud(*input_surfaces, *transformed_surfaces, guess);
+            // transformCloud(*input_, *input_transformed, guess);
+        }
+        else
+        {
+            *transformed_corners = *input_corners;
+            *transformed_surfaces = *input_surfaces;
+        }
+
+        transformation_ = Matrix4::Identity();
+
+        viewer.addPointCloud<PointT>(target_surfaces, "target");
+        viewer.addPointCloud<PointT>(transformed_surfaces, "tf_surface");
+
+        // TODO registration loop
+        for (int iteration = 0; iteration < max_iterations; ++iteration)
+        {
+
+            viewer.updatePointCloud<PointT>(transformed_surfaces, "tf_surface");
+            viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "tf_surface");
+            viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "tf_surface");
+
+            std::cout << "Final Transformation: \n"
+                      << final_transformation_ << std::endl;
 
             // TODO Find Correspondences
-            for (int j = 0; j < transformed_corners.size(); ++j)
+
+            // for (int j = 0; j < transformed_corners.size(); ++j)
+            // {
+            //     const PointT &pointSel = transformed_corners.points[j];
+            //     corner_tree->nearestKSearch(pointSel, corner_neighboors, *corners_correspondences, corners_correspondences_dists);
+            // }
+            correspondences->clear();
+            viewer.removeAllShapes();
+            for (int j = 0; j < transformed_surfaces->size(); ++j)
             {
-                const PointT &pointSel = transformed_corners.points[j];
-                corner_tree->nearestKSearch(pointSel, corner_neighboors, *corners_correspondences, corners_correspondences_dists);
-            }
-   
-            for (int j = 0; j < transformed_surfaces.size(); ++j)
-            {
-                const PointT &pointSel = transformed_surfaces.points[j];
-                surf_tree->nearestKSearch(pointSel, surface_neighboors, *surfaces_correspondences, surfaces_correspondences_dists);
+                const PointT &pointSel = transformed_surfaces->points[j];
+                surf_tree->nearestKSearch(pointSel, kn_surface_neighboors, surfaces_correspondences, surfaces_correspondences_dists);
+                if (surfaces_correspondences_dists[0] > max_corr_dist)
+                {
+                    continue;
+                }
+                pcl::Correspondence corr;
+                corr.index_query = j;
+                corr.index_match = surfaces_correspondences[0];
+                corr.distance = surfaces_correspondences_dists[0];
+                correspondences->push_back(corr);
+
+                // source_corrs->push_back(pointSel);
+                // target_corrs->push_back(target_surfaces->points[(*surfaces_correspondences)[0]]);
 
                 Eigen::Vector4f normal;
                 float unused;
+                const PointT &probe = target_surfaces->points[surfaces_correspondences[0]];
+                if (probe.normal_x == 0 && probe.normal_y == 0 && probe.normal_z == 0)
+                {
+                    // PCL_DEBUG("Updating normals ");
+                    pcl::computePointNormal(*target_surfaces, surfaces_correspondences, normal, unused);
+                    // PCL_DEBUG("ok!-> %f %f %f\n",normal[0],normal[1],normal[2]);
+
+                    target_sufraces_modifiable->points[surfaces_correspondences[0]].normal_x = normal[0];
+                    target_sufraces_modifiable->points[surfaces_correspondences[0]].normal_y = normal[1];
+                    target_sufraces_modifiable->points[surfaces_correspondences[0]].normal_z = normal[2];
+                }
                 // pcl::computePointNormal(*input_surfaces, *surfaces_correspondences, normal, unused);
                 // PCL_DEBUG("pt: %d ",(*surfaces_correspondences)[0]);
                 // target_sufraces_modifiable->points[(*surfaces_correspondences)[0]].normal_x = normal[0];
                 // target_sufraces_modifiable->points[(*surfaces_correspondences)[0]].normal_y = normal[1];
                 // target_sufraces_modifiable->points[(*surfaces_correspondences)[0]].normal_z = normal[2];
-
+                viewer.addLine<PointT, PointT>(pointSel, target_surfaces->points[surfaces_correspondences[0]], 1, 0, 0, "arrow" + std::to_string(j));
             }
+            viewer.removePointCloud("surface_normals");
+            viewer.addPointCloudNormals<PointT>(target_surfaces, 1, 0.1, "surface_normals");
+            viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0,1,0 , "surface_normals");
+            viewer.spin();
 
             // TODO optimization loop
+            int n_pts = correspondences->size();
+            // x y z ax ay az
             VectorX parameters(6);
 
-            PCL_DEBUG("opt loop %d\n", iteration);
+            Eigen::MatrixXf Jacobian(n_pts, 6); // n x 6
+            MatrixX Hessian(6, 6);              // 6 x 3 x 3 x 6 -> 6 x 6
+
+            VectorX NError(n_pts);
+            VectorX Residuals(6); // 6 x 1
+
+            // Rotations
+            Matrix3 Rx;
+            Matrix3 Ry;
+            Matrix3 Rz;
+
+            // Derivatives
+            Matrix3 Rx_;
+            Matrix3 Ry_;
+            Matrix3 Rz_;
+
+            // Compositions
+            Matrix3 Rxyz;
+            Matrix3 Rx_yz;
+            Matrix3 Rxy_z;
+            Matrix3 Rxyz_;
+
+            Scalar damping = 0.5;
+
+            parameters.setConstant(6, 0); // Init
+            Hessian.setZero();
+            Residuals.setZero();
+
+            for (int j = 0; j < 5; ++j)
+            {
+
+                Vector3 translation(parameters(0), parameters(1), parameters(2));
+
+                Scalar c_alpha = std::cos(parameters(3));
+                Scalar s_alpha = std::sin(parameters(3));
+
+                Scalar c_beta = std::cos(parameters(4));
+                Scalar s_beta = std::sin(parameters(4));
+
+                Scalar c_gamma = std::cos(parameters(5));
+                Scalar s_gamma = std::sin(parameters(5));
+
+                Rx << 1, 0, 0,
+                    0, c_alpha, -s_alpha,
+                    0, s_alpha, c_alpha;
+
+                Ry << c_beta, 0, s_beta,
+                    0, 1, 0,
+                    -s_beta, 0, c_beta;
+
+                Rz << c_gamma, -s_gamma, 0,
+                    s_gamma, c_gamma, 0,
+                    0, 0, 1;
+
+                Rx_ << 0, 0, 0,
+                    0, -s_alpha, -c_alpha,
+                    0, c_alpha, -s_alpha;
+
+                Ry_ << -s_beta, 0, c_beta,
+                    0, 0, 0,
+                    -c_beta, 0, -s_beta;
+
+                Rz_ << -s_gamma, -c_gamma, 0,
+                    c_gamma, -s_gamma, 0,
+                    0, 0, 0;
+
+                Rxyz = Rz * Ry * Rx;
+                Rx_yz = Rz * Ry * Rx_;
+                Rxy_z = Rz * Ry_ * Rx;
+                Rxyz_ = Rz_ * Ry * Rx;
+
+                PCL_DEBUG("Surf corrs: %d\n", correspondences->size());
+                for (int i = 0; i < n_pts; i++)
+                {
+
+                    const int src_index = (*correspondences)[i].index_query;
+                    const int tgt_index = (*correspondences)[i].index_match;
+
+                    // PCL_DEBUG("src :%d -> %d: tgt d: %f\n", src_index, tgt_index, (*correspondences)[i].distance);
+
+                    const PointT &src_pt = transformed_surfaces->points[src_index];
+                    const PointT &tgt_pt = target_surfaces->points[tgt_index];
+                    //  compute jacobian
+                    // std::cout << "SRC <--> TGT: " << src_pt << " <--> " << tgt_pt << std::endl;
+
+                    VectorX Error = Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap(); //p2p
+                    Scalar error = Error.dot(tgt_pt.getNormalVector3fMap());
+
+                    Vector3 jac_alpha = Rx_yz * src_pt.getVector3fMap();
+                    Vector3 jac_beta = Rxy_z * src_pt.getVector3fMap();
+                    Vector3 jac_gamma = Rxyz_ * src_pt.getVector3fMap();
+
+                    // Jacobian(0, 0) = Error[0]; // 2 * e1
+                    // Jacobian(0, 1) = Error[1]; // 2 * e2
+                    // Jacobian(0, 2) = Error[2]; // 2 * e3
+
+                    // Jacobian(0, 3) = Error[0] * jac_alpha[0] + Error[1] * jac_alpha[1] + Error[2] * jac_alpha[2]; // alpha
+                    // Jacobian(0, 4) = Error[0] * jac_beta[0] + Error[1] * jac_beta[1] + Error[2] * jac_beta[2];    // beta
+                    // Jacobian(0, 5) = Error[0] * jac_gamma[0] + Error[1] * jac_gamma[1] + Error[2] * jac_gamma[2]; // gamma
+
+                    // Stack jacobians
+                    Jacobian(i, 0) = tgt_pt.normal_x; // 2 * e1
+                    Jacobian(i, 1) = tgt_pt.normal_y; // 2 * e2
+                    Jacobian(i, 2) = tgt_pt.normal_z; // 2 * e3
+
+                    Jacobian(i, 3) = (tgt_pt.normal_x * jac_alpha[0] + tgt_pt.normal_y * jac_alpha[1] + tgt_pt.normal_z * jac_alpha[2]); // alpha
+                    Jacobian(i, 4) = (tgt_pt.normal_x * jac_beta[0] + tgt_pt.normal_y * jac_beta[1] + tgt_pt.normal_z * jac_beta[2]);    // beta
+                    Jacobian(i, 5) = (tgt_pt.normal_x * jac_gamma[0] + tgt_pt.normal_y * jac_gamma[1] + tgt_pt.normal_z * jac_gamma[2]); // gamma
+                    NError[i] = error;
+
+                    // Jacobian = Jacobian / error;
+
+                    // Hessian += Jacobian.transpose() * Jacobian; // 6 x 6 0.006197
+                    // Residuals += Jacobian.transpose() * error;
+                }
+
+                damping *= 1.2;
+                Hessian = Jacobian.transpose() * Jacobian; //
+                MatrixX diagonal = damping * Hessian.diagonal().asDiagonal();
+                Hessian = Hessian + diagonal;
+                Residuals = Jacobian.transpose() * NError;
+
+                parameters -= Hessian.inverse() * Residuals;
+
+                PCL_DEBUG("GN Solver (%f damping) : %f %f %f %f %f %f\n", damping, parameters[0], parameters[1], parameters[2], parameters[3], parameters[4], parameters[5]);
+
+            } // End OPT LOOP
+
+            transformation_.setZero();
+            transformation_(0, 3) = parameters[0];
+            transformation_(1, 3) = parameters[1];
+            transformation_(2, 3) = parameters[2];
+            transformation_(3, 3) = 1;
+
+            // Compute w from the unit quaternion
+            Eigen::Quaternion<Scalar> q(0, parameters[3], parameters[4], parameters[5]);
+            q.w() = static_cast<Scalar>(std::sqrt(1 - q.dot(q)));
+            q.normalize();
+            transformation_.topLeftCorner(3, 3) = q.toRotationMatrix();
+            std::cout << "Incr. Matrix: \n"
+                      << transformation_ << std::endl;
+
+            // Transform the data
+            pcl::transformPointCloud(*transformed_surfaces, *transformed_surfaces, transformation_);
+            // transformCloud(*input_transformed, *input_transformed, transformation_);
+
+            // Obtain the final transformation
+            final_transformation_ = transformation_ * final_transformation_;
         }
     }
 
