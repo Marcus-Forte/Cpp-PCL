@@ -2,6 +2,7 @@
 #include "opencv2/opencv.hpp" // TODO mudar
 
 #include <pcl/visualization/pcl_visualizer.h>
+#include <thread>
 
 namespace duna
 {
@@ -22,11 +23,18 @@ namespace duna
         PCL_DEBUG("target corners: %d\n", target_corners->size());
         PCL_DEBUG("target surfaces: %d\n", target_surfaces->size());
 
-        if (!KdTree_surf_ok || !KdTree_corn_ok)
+        if (!KdTree_surf_ok)
         {
-            PCL_DEBUG("No KDTree found. Recomputing...\n");
+            PCL_DEBUG("No Surface KDTree found. Recomputing...\n");
             surf_tree->setInputCloud(target_surfaces);
+            KdTree_surf_ok = true;
+        }
+
+        if (!KdTree_corn_ok)
+        {
+            PCL_DEBUG("No Corner KDTree found. Recomputing...\n");
             corner_tree->setInputCloud(target_corners);
+            KdTree_corn_ok = true;
         }
 
         pcl::Indices corners_correspondences_indices;
@@ -37,8 +45,6 @@ namespace duna
 
         PointCloudTPtr transformed_corners(new PointCloudT);
         PointCloudTPtr transformed_surfaces(new PointCloudT);
-
-        // pcl::visualization::PCLVisualizer viewer("registration");
 
         final_transformation_ = guess;
 
@@ -61,8 +67,18 @@ namespace duna
 
         transformation_ = Matrix4::Identity();
 
-        // viewer.addPointCloud<PointT>(target_surfaces, "target");
-        // viewer.addPointCloud<PointT>(transformed_surfaces, "tf_surface");
+        pcl::visualization::PCLVisualizer::Ptr viewer;
+        if (visualize)
+        {
+            viewer.reset(new pcl::visualization::PCLVisualizer("registration"));
+            viewer->addPointCloud<PointT>(target_surfaces, "target");
+            viewer->addPointCloud<PointT>(target_corners, "target_c");
+
+            viewer->addPointCloud<PointT>(input_corners, "input_c");
+
+            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "target");
+            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "target_c");
+        }
 
         nr_iterations_ = 0;
         converged_ = false;
@@ -79,20 +95,35 @@ namespace duna
         do
         {
 
-            // viewer.updatePointCloud<PointT>(transformed_surfaces, "tf_surface");
-            // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1, 0, 0, "tf_surface");
-            // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "tf_surface");
+            /* CORRESPONDENCES */
 
             // TODO Find Correspondences
+            corners_correspondences->clear();
+            if (visualize)
+                viewer->removeAllShapes();
 
-            // for (int j = 0; j < transformed_corners.size(); ++j)
-            // {
-            //     const PointT &pointSel = transformed_corners.points[j];
-            //     corner_tree->nearestKSearch(pointSel, corner_neighboors, *corners_correspondences, corners_correspondences_dists);
-            // }
+            for (int j = 0; j < transformed_corners->size(); ++j)
+            {
+                const PointT &pointSel = transformed_corners->points[j];
+                corner_tree->nearestKSearch(pointSel, kn_corner_neighboors, corners_correspondences_indices, corners_correspondences_dists);
+                if (corners_correspondences_dists[0] > max_corr_dist)
+                {
+                    continue;
+                }
+                pcl::Correspondence corr;
+                corr.index_query = j;
+                corr.index_match = corners_correspondences_indices[0];
+                corr.distance = corners_correspondences_dists[0];
+                corners_correspondences->push_back(corr);
+
+                if (visualize)
+                    viewer->addLine<PointT, PointT>(pointSel, target_corners->points[corners_correspondences_indices[0]], 0, 1, 0, "line_corn" + std::to_string(j));
+            }
+
+            // SURFACE
 
             surfaces_correspondences->clear();
-            // viewer.removeAllShapes();
+
             for (int j = 0; j < transformed_surfaces->size(); ++j)
             {
                 const PointT &pointSel = transformed_surfaces->points[j];
@@ -107,15 +138,12 @@ namespace duna
                 corr.distance = surfaces_correspondences_dists[0];
                 surfaces_correspondences->push_back(corr);
 
-                // source_corrs->push_back(pointSel);
-                // target_corrs->push_back(target_surfaces->points[(*surfaces_correspondences)[0]]);
-
                 Eigen::Vector4f normal;
                 float unused;
                 const PointT &probe = target_surfaces->points[surfaces_correspondences_indices[0]];
                 if (probe.normal_x == 0 && probe.normal_y == 0 && probe.normal_z == 0)
                 {
-                    // PCL_DEBUG("Updating normals ");
+                    PCL_DEBUG("Updating normals ");
                     pcl::computePointNormal(*target_surfaces, surfaces_correspondences_indices, normal, unused);
                     // PCL_DEBUG("ok!-> %f %f %f\n",normal[0],normal[1],normal[2]);
 
@@ -124,14 +152,23 @@ namespace duna
                     target_sufraces_modifiable->points[surfaces_correspondences_indices[0]].normal_z = normal[2];
                 }
 
-                // viewer.addLine<PointT, PointT>(pointSel, target_surfaces->points[surfaces_correspondences_indices[0]], 1, 0, 0, "arrow" + std::to_string(j));
+                if (visualize)
+                    viewer->addLine<PointT, PointT>(pointSel, target_surfaces->points[surfaces_correspondences_indices[0]], 1, 1, 1, "line_surf" + std::to_string(j));
             }
-            // viewer.removePointCloud("surface_normals");
-            // viewer.addPointCloudNormals<PointT>(target_surfaces, 1, 0.1, "surface_normals");
-            // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "surface_normals");
-            // viewer.spin();
+            if (visualize)
+            {
+                // viewer->removePointCloud("surface_normals");
+                // viewer->addPointCloudNormals<PointT>(target_surfaces, 1, 0.1, "surface_normals");
+                // viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 0, 1, 0, "surface_normals");
+                // viewerSpinnerThread();
+                // viewer->spinOnce(500);
+                viewer->spin();
+            }
 
-            int n_pts = surfaces_correspondences->size();
+            
+
+            int n_pts = surfaces_correspondences->size() + corners_correspondences->size();
+            // int n_pts = corners_correspondences->size();
 
             if (n_pts < min_number_correspondences_)
             {
@@ -142,6 +179,7 @@ namespace duna
             }
 
             // TODO optimization loop
+
             // x y z ax ay az
             VectorX parameters(6);
 
@@ -152,28 +190,35 @@ namespace duna
             VectorX Residuals(6); // 6 x 1
 
             // Rotations
-            Matrix3 Rx;
-            Matrix3 Ry;
-            Matrix3 Rz;
+            static Matrix3 Rx;
+            static Matrix3 Ry;
+            static Matrix3 Rz;
 
             // Derivatives
-            Matrix3 Rx_;
-            Matrix3 Ry_;
-            Matrix3 Rz_;
+            static Matrix3 Rx_;
+            static Matrix3 Ry_;
+            static Matrix3 Rz_;
 
             // Compositions
-            Matrix3 Rxyz;
-            Matrix3 Rx_yz;
-            Matrix3 Rxy_z;
-            Matrix3 Rxyz_;
+            static Matrix3 Rxyz;
+            static Matrix3 Rx_yz;
+            static Matrix3 Rxy_z;
+            static Matrix3 Rxyz_;
 
-            Scalar damping = 0.5;
+            Scalar damping = 0.2;
 
             parameters.setConstant(6, 0); // Init
             Hessian.setZero();
             Residuals.setZero();
+            Rx.setZero();
+            Ry.setZero();
+            Rz.setZero();
 
-            for (int j = 0; j < 3; ++j)
+            Rx_.setZero();
+            Ry_.setZero();
+            Rz_.setZero();
+
+            for (int j = 0; j < 2; ++j)
             {
 
                 Vector3 translation(parameters(0), parameters(1), parameters(2));
@@ -216,8 +261,13 @@ namespace duna
                 Rxy_z = Rz * Ry_ * Rx;
                 Rxyz_ = Rz_ * Ry * Rx;
 
-                PCL_DEBUG("Surf corrs: %d\n", n_pts);
-                for (int i = 0; i < n_pts; i++)
+
+
+                
+                int jacobian_row = 0;
+                // Loop Over surface points
+                
+                for (int i = 0; i < surfaces_correspondences->size(); ++i)
                 {
 
                     const int src_index = (*surfaces_correspondences)[i].index_query;
@@ -227,43 +277,69 @@ namespace duna
 
                     const PointT &src_pt = transformed_surfaces->points[src_index];
                     const PointT &tgt_pt = target_surfaces->points[tgt_index];
+
+
                     //  compute jacobian
-                    // std::cout << "SRC <--> TGT: " << src_pt << " <--> " << tgt_pt << std::endl;
+                    std::cout << "SRC <--> TGT: " << src_pt << " <--> " << tgt_pt << std::endl;
 
                     VectorX Error = Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap(); //p2p
                     Scalar error = Error.dot(tgt_pt.getNormalVector3fMap());
+                    PCL_DEBUG("surf error %d %f\n",jacobian_row,error);
+                    Vector3 jac_alpha = Rx_yz * src_pt.getVector3fMap();
+                    Vector3 jac_beta = Rxy_z * src_pt.getVector3fMap();
+                    Vector3 jac_gamma = Rxyz_ * src_pt.getVector3fMap();
+
+                    // Stack jacobians
+                    Jacobian(jacobian_row, 0) = tgt_pt.normal_x; // 2 * e1
+                    Jacobian(jacobian_row, 1) = tgt_pt.normal_y; // 2 * e2
+                    Jacobian(jacobian_row, 2) = tgt_pt.normal_z; // 2 * e3
+
+                    Jacobian(jacobian_row, 3) = (tgt_pt.normal_x * jac_alpha[0] + tgt_pt.normal_y * jac_alpha[1] + tgt_pt.normal_z * jac_alpha[2]); // alpha
+                    Jacobian(jacobian_row, 4) = (tgt_pt.normal_x * jac_beta[0] + tgt_pt.normal_y * jac_beta[1] + tgt_pt.normal_z * jac_beta[2]);    // beta
+                    Jacobian(jacobian_row, 5) = (tgt_pt.normal_x * jac_gamma[0] + tgt_pt.normal_y * jac_gamma[1] + tgt_pt.normal_z * jac_gamma[2]); // gamma
+                    NError[jacobian_row] = error;
+
+                    jacobian_row++;
+
+                    // Jacobian = Jacobian / error;
+                    // Hessian += Jacobian.transpose() * Jacobian; // 6 x 6 0.006197
+                    // Residuals += Jacobian.transpose() * error;
+                }
+
+                // TODO loop over corner points
+                for (int i = 0; i < corners_correspondences->size(); ++i)
+                {
+                    const int src_index = (*corners_correspondences)[i].index_query;
+                    const int tgt_index = (*corners_correspondences)[i].index_match;
+
+                    const PointT &src_pt = transformed_corners->points[src_index];
+                    const PointT &tgt_pt = target_corners->points[tgt_index];
+
+                    VectorX Error = Rxyz * src_pt.getVector3fMap() + translation - tgt_pt.getVector3fMap(); //p2p
+                    Scalar error = Error.norm();
 
                     Vector3 jac_alpha = Rx_yz * src_pt.getVector3fMap();
                     Vector3 jac_beta = Rxy_z * src_pt.getVector3fMap();
                     Vector3 jac_gamma = Rxyz_ * src_pt.getVector3fMap();
 
-                    // Jacobian(0, 0) = Error[0]; // 2 * e1
-                    // Jacobian(0, 1) = Error[1]; // 2 * e2
-                    // Jacobian(0, 2) = Error[2]; // 2 * e3
-
-                    // Jacobian(0, 3) = Error[0] * jac_alpha[0] + Error[1] * jac_alpha[1] + Error[2] * jac_alpha[2]; // alpha
-                    // Jacobian(0, 4) = Error[0] * jac_beta[0] + Error[1] * jac_beta[1] + Error[2] * jac_beta[2];    // beta
-                    // Jacobian(0, 5) = Error[0] * jac_gamma[0] + Error[1] * jac_gamma[1] + Error[2] * jac_gamma[2]; // gamma
-
                     // Stack jacobians
-                    Jacobian(i, 0) = tgt_pt.normal_x; // 2 * e1
-                    Jacobian(i, 1) = tgt_pt.normal_y; // 2 * e2
-                    Jacobian(i, 2) = tgt_pt.normal_z; // 2 * e3
+                    Jacobian(jacobian_row, 0) = Error[0] / error; // 2 * e1
+                    Jacobian(jacobian_row, 1) = Error[1] / error; // 2 * e2
+                    Jacobian(jacobian_row, 2) = Error[2] / error; // 2 * e3
 
-                    Jacobian(i, 3) = (tgt_pt.normal_x * jac_alpha[0] + tgt_pt.normal_y * jac_alpha[1] + tgt_pt.normal_z * jac_alpha[2]); // alpha
-                    Jacobian(i, 4) = (tgt_pt.normal_x * jac_beta[0] + tgt_pt.normal_y * jac_beta[1] + tgt_pt.normal_z * jac_beta[2]);    // beta
-                    Jacobian(i, 5) = (tgt_pt.normal_x * jac_gamma[0] + tgt_pt.normal_y * jac_gamma[1] + tgt_pt.normal_z * jac_gamma[2]); // gamma
-                    NError[i] = error;
+                    Jacobian(jacobian_row, 3) = (Error[0] * jac_alpha[0] + Error[1] * jac_alpha[1] + Error[2] * jac_alpha[2]) / error; // alpha
+                    Jacobian(jacobian_row, 4) = (Error[0] * jac_beta[0] + Error[1] * jac_beta[1] + Error[2] * jac_beta[2]) / error;    // beta
+                    Jacobian(jacobian_row, 5) = (Error[0] * jac_gamma[0] + Error[1] * jac_gamma[1] + Error[2] * jac_gamma[2]) / error; // gamma
+                    NError[jacobian_row] = error;
 
-                    // Jacobian = Jacobian / error;
-
-                    // Hessian += Jacobian.transpose() * Jacobian; // 6 x 6 0.006197
-                    // Residuals += Jacobian.transpose() * error;
+                    jacobian_row++;
+                    // Point2Point
                 }
 
                 damping *= 1.2;
-                Hessian = Jacobian.transpose() * Jacobian; //
-                MatrixX diagonal = damping * Hessian.diagonal().asDiagonal();
+                Hessian = Jacobian.transpose() * Jacobian; // 6x6
+                // MatrixX diagonal = damping * Hessian.diagonal().asDiagonal();
+                MatrixX diagonal = damping * MatrixX::Identity(6,6);
                 Hessian = Hessian + diagonal;
                 Residuals = Jacobian.transpose() * NError;
 
@@ -287,6 +363,7 @@ namespace duna
 
             // Transform the data
             pcl::transformPointCloud(*transformed_surfaces, *transformed_surfaces, transformation_);
+            pcl::transformPointCloud(*transformed_corners, *transformed_corners, transformation_);
             // transformCloud(*input_transformed, *input_transformed, transformation_);
 
             // Obtain the final transformation
@@ -764,3 +841,63 @@ namespace duna
 
     template class PCL_EXPORTS Registration<pcl::PointXYZINormal, float>;
 }
+
+//  Rx.coeffRef(0) = 1;
+//                 // Rx.coeffRef(1) = 0;
+//                 // Rx.coeffRef(2) = 0;
+//                 // Rx.coeffRef(3) = 0;
+//                 Rx.coeffRef(4) = c_alpha;
+//                 Rx.coeffRef(5) = s_alpha;
+//                 // Rx.coeffRef(6) = 0;
+//                 Rx.coeffRef(7) = -s_alpha;
+//                 Rx.coeffRef(8) = c_alpha;
+
+//                 Ry.coeffRef(0) = c_beta;
+//                 // Ry.coeffRef(1) = 0;
+//                 Ry.coeffRef(2) = -s_beta;
+//                 // Ry.coeffRef(3) = 0;
+//                 Ry.coeffRef(4) = 1;
+//                 // Ry.coeffRef(5) = 0;
+//                 Ry.coeffRef(6) = s_beta;
+//                 // Ry.coeffRef(7) = 0;
+//                 Ry.coeffRef(8) = c_beta;
+
+//                 Rz.coeffRef(0) = c_gamma;
+//                 Rz.coeffRef(1) = s_gamma;
+//                 // Rz.coeffRef(2) = 0;
+//                 Rz.coeffRef(3) = -s_gamma;
+//                 Rz.coeffRef(4) = c_gamma;
+//                 // Rz.coeffRef(5) = 0;
+//                 // Rz.coeffRef(6) = 0;
+//                 // Rz.coeffRef(7) = 0;
+//                 Rz.coeffRef(8) = 1;
+
+//                 // Rx_.coeffRef(0) = 0;
+//                 // Rx_.coeffRef(1) = 0;
+//                 // Rx_.coeffRef(2) = 0;
+//                 Rx_.coeffRef(3) = 0;
+//                 Rx_.coeffRef(4) = -s_alpha;
+//                 Rx_.coeffRef(5) = c_alpha;
+//                 // Rx_.coeffRef(6) = 0;
+//                 Rx_.coeffRef(7) = -c_alpha;
+//                 Rx_.coeffRef(8) = -s_alpha;
+
+//                 Ry_.coeffRef(0) = -s_beta;
+//                 Ry_.coeffRef(1) = 0;
+//                 Ry_.coeffRef(2) = -c_beta;
+//                 // Ry_.coeffRef(3) = 0;
+//                 // Ry_.coeffRef(4) = 0;
+//                 // Ry_.coeffRef(5) = 0;
+//                 Ry_.coeffRef(6) = c_beta;
+//                 // Ry_.coeffRef(7) = 0;
+//                 Ry_.coeffRef(8) = -s_beta;
+
+//                 Rz_.coeffRef(0) = -s_gamma;
+//                 Rz_.coeffRef(1) = c_gamma;
+//                 // Rz_.coeffRef(2) = 0;
+//                 Rz_.coeffRef(3) = -c_gamma;
+//                 Rz_.coeffRef(4) = -s_gamma;
+//                 // Rz_.coeffRef(5) = 0;
+//                 // Rz_.coeffRef(6) = 0;
+//                 // Rz_.coeffRef(7) = 0;
+//                 // Rz_.coeffRef(8) = 0;

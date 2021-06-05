@@ -89,17 +89,18 @@ int main(int argc, char **argv)
     duna::Registration<PointT> registration;
     registration.setTargetCornersSearchMethod(corners_tree, false);
     registration.setTargetSurfacesSearchMethod(surfaces_tree, false);
-    registration.setMaxCorrDist(7);
+    registration.setMaxCorrDist(10);
     registration.setInputCorners(corners);
     registration.setInputSurfaces(surfaces);
     registration.setTargetCorners(corner_map);
     registration.setTargetSurfaces(surface_map);
     registration.setMaximumIterations(100);
-    registration.setTransformationEpsilon(1e-8);
+    registration.setTransformationEpsilon(1e-4);
+    registration.setVisualize(true);
 
     // Set Parameters
     Eigen::Matrix4f guess;
-    guess << 1, 0, 0, 24, 0, 1, 0, 0.3, 0, 0, 1, -1.5, 0, 0, 0, 1;
+    guess << 1, 0, 0, 22, 0, 1, 0, 0.3, 0, 0, 1, -1.5, 0, 0, 0, 1;
     clock_t start = clock();
     registration.align(guess);
     clock_t elapsed = clock() - start;
@@ -109,11 +110,12 @@ int main(int argc, char **argv)
     icp.setInputSource(surfaces);
     icp.setInputTarget(surface_map);
     icp.setMaximumIterations(100);
-    icp.setMaxCorrespondenceDistance(7);
-    icp.setTransformationEpsilon(1e-8);
+    icp.setMaxCorrespondenceDistance(10);
+    icp.setTransformationEpsilon(1e-4);
     pcl::registration::TransformationEstimation<PointT, PointT>::Ptr transform_;
     transform_.reset(new pcl::registration::TransformationEstimationPointToPlaneLLS<PointT, PointT>);
     PointCloudT surface_tf_icp;
+    icp.setTransformationEstimation(transform_);
     start = clock();
     icp.align(surface_tf_icp, guess);
     elapsed = clock() - start;

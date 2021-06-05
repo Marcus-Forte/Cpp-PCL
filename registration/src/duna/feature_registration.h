@@ -131,6 +131,9 @@ namespace duna
             return final_transformation_;
         }
 
+
+        inline void setVisualize(bool visualize_) {visualize = visualize_; }
+
     private:
         KdTreePtr surf_tree;
         KdTreePtr corner_tree;
@@ -195,6 +198,9 @@ namespace duna
         bool converged_;
 
         typename pcl::registration::DefaultConvergenceCriteria<Scalar>::Ptr convergence_criteria_;
+
+
+        bool visualize = false;
 
     protected:
     };

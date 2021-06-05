@@ -21,7 +21,7 @@ add_library (${Library2Name} SHARED
 #  src/duna/transform_normals.cpp)
  )
 
- target_include_directories(${LibraryName} PUBLIC ${OpenCV_INCLUDE_DIRS})
+ target_include_directories(${LibraryName} PUBLIC ${OpenCV_INCLUDE_DIRS} ${PCL_INCLUDE_DIRS})
  target_link_libraries(${LibraryName} PUBLIC ${OpenCV_LIBRARIES})       
 # add_executable(registration src/registration.cpp)
 
