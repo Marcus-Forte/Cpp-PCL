@@ -16,6 +16,21 @@ using PixelListT = std::vector<cv::Point2i>;
 PointListT pointList;
 PixelListT pixelList;
 
+
+void Optimize(const PointListT& points, const PixelListT& pixels, Eigen::Matrix4d intrinsics){
+    
+    // I -> Projection matrix from Intrinsics
+    // E -> Extrinsics * frame conversion (i.e camera frame is rotated with respect to lidar frame)
+    // E -> 6 parameters (rx ry rz tx ty tz) to optimize cost
+
+    // minimize cost: 
+    // error[i] = pixel[i] - I * E * point[i] (two dimensional)
+
+
+    
+
+}
+
 void mouseCallbackImg(const pcl::visualization::MouseEvent &event, void *cookie)
 {
     pcl::visualization::ImageViewer &viewer = *(*((pcl::visualization::ImageViewer::Ptr *)cookie));
