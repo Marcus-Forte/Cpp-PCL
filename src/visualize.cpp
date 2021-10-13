@@ -28,54 +28,53 @@ using GeometryHandlerConstPtr = GeometryHandler::ConstPtr;
 
 void keyCallback(const pcl::visualization::KeyboardEvent &event, void *cookie)
 {
-    pcl::visualization::PCLVisualizer *viewer = (pcl::visualization::PCLVisualizer *)cookie;
-    pcl::visualization::Camera c0;
-    viewer->getCameraParameters(c0);
+	pcl::visualization::PCLVisualizer *viewer = (pcl::visualization::PCLVisualizer *)cookie;
+	pcl::visualization::Camera c0;
+	viewer->getCameraParameters(c0);
 
+	// orientation
+	float dx = c0.focal[0] - c0.pos[0];
+	float dy = c0.focal[1] - c0.pos[1];
+	float dz = c0.focal[2] - c0.pos[2];
 
-    // orientation
-    float dx = c0.focal[0] - c0.pos[0];
-    float dy = c0.focal[1] - c0.pos[1];
-    float dz = c0.focal[2] - c0.pos[2];
+	float norm = sqrtf(dx * dx + dy * dy + dz * dz);
+	dx /= norm;
+	dy /= norm;
+	dz /= norm;
+	// std::cout << dx << "," << dy << "," << dz << std::endl;
+	float vel = 1;
 
-    float norm = sqrtf(dx * dx + dy * dy + dz * dz);
-    dx /= norm;
-    dy /= norm;
-    dz /= norm;
-    // std::cout << dx << "," << dy << "," << dz << std::endl;
-    float vel = 1;
+	std::string keyName = event.getKeySym();
 
-    std::string keyName = event.getKeySym();
+	if (keyName == "Up" && event.keyDown())
+	{
+		c0.pos[0] += dx * vel;
+		c0.pos[1] += dy * vel;
+		c0.pos[2] += dz * vel;
 
-    if (keyName == "Up" && event.keyDown())
-    {
-        c0.pos[0] += dx * vel;
-        c0.pos[1] += dy * vel;
-        c0.pos[2] += dz * vel;
+		c0.focal[0] = c0.pos[0] + dx * 2;
+		c0.focal[1] = c0.pos[1] + dy * 2;
+		c0.focal[2] = c0.pos[2] + dz * 2;
 
-        c0.focal[0] = c0.pos[0] + dx*2;
-        c0.focal[1] = c0.pos[1] + dy*2;
-        c0.focal[2] = c0.pos[2] + dz*2;
+		viewer->setCameraParameters(c0);
+	}
+	else if (keyName == "Down" && event.keyDown())
+	{
+		c0.pos[0] -= dx * vel;
+		c0.pos[1] -= dy * vel;
+		c0.pos[2] -= dz * vel;
 
-        viewer->setCameraParameters(c0);
-    }
-    else if (keyName == "Down" && event.keyDown())
-    {
-        c0.pos[0] -= dx * vel;
-        c0.pos[1] -= dy * vel;
-        c0.pos[2] -= dz * vel;
-
-        c0.focal[0] = c0.pos[0] + dx*2;
-        c0.focal[1] = c0.pos[1] + dy*2;
-        c0.focal[2] = c0.pos[2] + dz*2;
-        viewer->setCameraParameters(c0);
-    }
-    else if (keyName == "Left" && event.keyDown())
-    {
-    }
-    else if (keyName == "Right" && event.keyDown())
-    {
-    }
+		c0.focal[0] = c0.pos[0] + dx * 2;
+		c0.focal[1] = c0.pos[1] + dy * 2;
+		c0.focal[2] = c0.pos[2] + dz * 2;
+		viewer->setCameraParameters(c0);
+	}
+	else if (keyName == "Left" && event.keyDown())
+	{
+	}
+	else if (keyName == "Right" && event.keyDown())
+	{
+	}
 }
 
 void make_grid(pcl::visualization::PCLVisualizer &viewer, float res = 1)
@@ -131,7 +130,7 @@ void pp_callback(const pcl::visualization::PointPickingEvent &event)
 		float x, y, z;
 		event.getPoint(x, y, z);
 		int i = event.getPointIndex();
-		std::cout << "i:" << i << " x = " << x << ";" << y << ";" << z << std::endl;
+		std::cout << "i:" << i << " x = " << x << " " << y << " " << z << std::endl;
 	}
 }
 
@@ -151,7 +150,7 @@ int main(int argc, char **argv)
 	// viewer.setBackgroundColor(0, 0, 0, v1);
 	// viewer.addCoordinateSystem(1, "ref", v1);
 	viewer.registerPointPickingCallback(pp_callback);
-	viewer.registerKeyboardCallback(keyCallback,&viewer);
+	viewer.registerKeyboardCallback(keyCallback, &viewer);
 	make_grid(viewer, 1);
 
 	int n_clouds = argc - 1;
@@ -165,24 +164,42 @@ int main(int argc, char **argv)
 		std::cout << "Reading file .. " << i << std::endl;
 		cloud_vector[i] = pcl::make_shared<PointCloudT>();
 
-		PCUtils::readFile(argv[i+1], *cloud_vector[i]);
+		PCUtils::readFile(argv[i + 1], *cloud_vector[i]);
 		// pcl::io::loadPCDFile(argv[i + 1], *cloud_vector[i]);
-		
+
 		ColorHandlerPtr color;
 
 		Eigen::Vector4f origin = Eigen::Vector4f::Zero();
 		Eigen::Quaternionf orientation = Eigen::Quaternionf::Identity();
+		bool has_normals = false;
 
 		for (std::size_t j = 0; j < cloud_vector[i]->fields.size(); ++j)
 		{
 			std::string field_name = cloud_vector[i]->fields[j].name;
 			std::cout << "Color field: " << field_name << std::endl;
-			if(field_name == "rgba"){
-			color.reset(new pcl::visualization::PointCloudColorHandlerRGBAField<PointCloudT>(cloud_vector[i]));
-			} else {
-			color.reset(new pcl::visualization::PointCloudColorHandlerGenericField<PointCloudT>(cloud_vector[i], cloud_vector[i]->fields[j].name));
+			if (field_name == "rgba")
+			{
+
+				color.reset(new pcl::visualization::PointCloudColorHandlerRGBAField<PointCloudT>(cloud_vector[i]));
 			}
-			
+			else if (field_name == "rgb")
+			{
+				color.reset(new pcl::visualization::PointCloudColorHandlerRGBField<PointCloudT>(cloud_vector[i]));
+			}
+			else
+			{
+				color.reset(new pcl::visualization::PointCloudColorHandlerGenericField<PointCloudT>(cloud_vector[i], cloud_vector[i]->fields[j].name));
+			}
+
+			if (field_name == "normal_x")
+			{
+				has_normals = true;
+				pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_normals(new pcl::PointCloud<pcl::PointXYZINormal>);
+
+				pcl::fromPCLPointCloud2((*cloud_vector[i]), *cloud_normals);
+				viewer.addPointCloudNormals<pcl::PointXYZINormal>(cloud_normals, 1, 0.2, "normals");
+			}
+
 			viewer.addPointCloud(cloud_vector[i], color, origin, orientation, "cloud" + std::to_string(i));
 		}
 	}

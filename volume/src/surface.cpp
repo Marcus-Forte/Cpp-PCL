@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 
     pcl::NormalEstimation<PointT, PointT> ne;
     ne.setInputCloud(cloud);
-    ne.setKSearch(50);
+    ne.setKSearch(300);
     ne.setViewPoint(0, 0, 100);
 
     ne.compute(*cloud);
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     PCL_INFO("init pts: %d\n", cloud->size());
     pcl::VoxelGrid<PointT> voxel;
     voxel.setInputCloud(cloud);
-    voxel.setLeafSize(0.001, 0.001, 0.001);
+    voxel.setLeafSize(0.2, 0.2, 0.2);
     voxel.filter(*cloud);
     PCL_INFO("voxel pts: %d\n", cloud->size());
 
@@ -50,11 +50,14 @@ int main(int argc, char **argv)
     // recon.setGridResolution(30,30,30);
     // recon.setOffSurfaceDisplacement(0.01);
 
+    // pcl::MarchingCubes<PointT> recon2;
+    
     pcl::MarchingCubesHoppe<PointT> recon;
     recon.setInputCloud(cloud);
     recon.setGridResolution(100, 100, 100);
     recon.setIsoLevel(0.00);
     recon.setPercentageExtendGrid(0.0);
+    
 
     // pcl::ConvexHull<PointT> recon;
     // recon.setInputCloud(cloud);

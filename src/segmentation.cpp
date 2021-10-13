@@ -7,6 +7,7 @@
 #include <pcl/sample_consensus/sac_model_line.h>
 #include <pcl/sample_consensus/ransac.h>
 #include <pcl/sample_consensus/sac_model_registration_2d.h>
+#include <pcl/sample_consensus/sac_model_plane.h>
 
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/extract_indices.h>
@@ -15,18 +16,8 @@
 #include <chrono>
 #include <thread>
 
-
 using PointT = pcl::PointXYZ;
 
-bool segment = false;
-
-void keyCallback(const pcl::visualization::KeyboardEvent &event, void *cookie)
-{
-    if (event.keyDown() && event.getKeyCode() == 'a')
-    {
-        segment = true;
-    }
-}
 
 int main(int argc, char **argv)
 {
@@ -44,6 +35,7 @@ int main(int argc, char **argv)
 
     std::string cloud_file = argv[1];
     pcl::PointCloud<PointT>::Ptr cloud = pcl::make_shared<pcl::PointCloud<PointT>>();
+    pcl::PointCloud<PointT>::Ptr output = pcl::make_shared<pcl::PointCloud<PointT>>();
 
     if (pcl::io::loadPCDFile(cloud_file, *cloud) == -1)
     {
@@ -53,75 +45,36 @@ int main(int argc, char **argv)
 
     PCL_INFO("N points -> %d\n", cloud->size());
 
-    pcl::SampleConsensusModelLine<pcl::PointXYZ>::Ptr model_line = pcl::make_shared<pcl::SampleConsensusModelLine<pcl::PointXYZ>>(cloud);
-    pcl::RandomSampleConsensus<pcl::PointXYZ> ransac_(model_line);
-    ransac_.setDistanceThreshold(dist_thres);
-
-    pcl::SACSegmentation<pcl::PointXYZ> ransac;
-    ransac.setModelType(pcl::SACMODEL_LINE);
+    clock_t start, elapsed;
+    pcl::Indices inliers;
+    start = clock();
+    pcl::SampleConsensusModelPlane<PointT>::Ptr model_p(new pcl::SampleConsensusModelPlane<PointT>(cloud));
+    pcl::RandomSampleConsensus<PointT> ransac(model_p);
+    ransac.setNumberOfThreads(2);
+    ransac.setMaxIterations(500);
     ransac.setDistanceThreshold(dist_thres);
-    ransac.setMethodType(pcl::SAC_PROSAC);
-    ransac.setInputCloud(cloud);
-    
+    ransac.computeModel();
+    ransac.getInliers(inliers);
+    elapsed = clock() - start;
+    printf("Segmentation (%f secs)\n ", (float)elapsed / CLOCKS_PER_SEC);
 
-    pcl::IndicesPtr inliers = pcl::make_shared<pcl::Indices>();
-    pcl::PointIndicesPtr inliers_ = pcl::make_shared<pcl::PointIndices>();
-    
+    pcl::copyPointCloud(*cloud,inliers,*output);
 
-    pcl::ExtractIndices<pcl::PointXYZ> extractor;
-    extractor.setInputCloud(cloud);
-    
 
-    pcl::PointCloud<PointT>::Ptr cloud_extract = pcl::make_shared<pcl::PointCloud<PointT>>();
+    pcl::visualization::PCLVisualizer viewer("viewer");
+    viewer.addPointCloud(cloud,"in");
 
-    pcl::visualization::PCLVisualizer viewer("Viewer");
-    viewer.registerKeyboardCallback(keyCallback);
-    viewer.addPointCloud(cloud);
-    int count = 0;
-    pcl::ModelCoefficients model;
+    viewer.addPointCloud(output,"seg");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,1,0,0,"seg");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,2,"seg");
 
-    
 
-    while (!viewer.wasStopped())
-    {
-        if (segment)
-        {
-            std::cout << "Segmenting..." << std::endl;
-            auto start = std::chrono::system_clock::now();
-            model_line->setInputCloud(cloud);
-            
-            ransac_.computeModel();
-            
-            ransac_.getInliers(*inliers);
-            extractor.setIndices(inliers);
-            
-            // ransac.setOptimizeCoefficients(true);
-            // ransac.setNumberOfThreads(2);
-            // ransac.segment(*inliers_,model);
-            
-            auto end = std::chrono::system_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-            std::cout << "Time: " << elapsed.count() << std::endl;
-        
-            extractor.setNegative(false);
-            extractor.filter(*cloud_extract);
-            
-            extractor.setNegative(true);
-            extractor.filter(*cloud); //Remaining
-            
-            PCL_INFO("Remaining -> %d\n",cloud->size());
-            PCL_INFO("Extracted -> %d\n",cloud_extract->size());
-            
-            viewer.removeAllPointClouds();
-            viewer.addPointCloud(cloud_extract,"extract");
-            viewer.addPointCloud(cloud,"remain");
-            viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,1,0,0,"extract");
-            
-
-            segment = false;
-        }
-        viewer.spinOnce(10);
+    while(!viewer.wasStopped()){
+        viewer.spin();
     }
+
+
+
 
     // PCL_INFO("Inliers -> %d\n", inliers->size());
     // PCL_INFO("Extracted -> %d\n", cloud_extract->size());

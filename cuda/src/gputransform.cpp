@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 	err = cudaPointerGetAttributes(&attributes, obj->vec);
 	std::cout << "Member Type: " << attributes.type << std::endl;
 
-	return 0;
+	// return 0;
 
 	PointCloudT *cloud_;
 	// float* f;
@@ -194,8 +194,8 @@ int main(int argc, char **argv)
 	// pcl::PointXYZ *ptr = gpu_transformed_cloud.points.data();
 
 	cudaEventRecord(start, 0);
-	// gpu::Transform(cloud, gpu_transformed_cloud, transform);
-	gpu::TransformUnified(cloud_, gpu_transformed_cloud_, transform_);
+	gpu::Transform(cloud, gpu_transformed_cloud, transform);
+	// gpu::TransformUnified(cloud_, gpu_transformed_cloud_, transform_);
 	cudaDeviceSynchronize();
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
