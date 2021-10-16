@@ -14,6 +14,11 @@ set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/lib)
 
 find_package(PCL 1.10 REQUIRED)
 
+# add_definitions(${PCL_DEFINITIONS})
+
+
+# find_package(PCL 1.12 PATHS /home/marcus/Software/pcl/build/install/share/pcl-1.12 REQUIRED)
+
 set (CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON) #install only target
 
 message(STATUS "PCL VERSION -> " ${PCL_VERSION})
@@ -34,6 +39,7 @@ add_subdirectory(volume)
 add_subdirectory(cuda)
 add_subdirectory(registration)
 add_subdirectory(tests)
+add_subdirectory(qt)
 
 
 
