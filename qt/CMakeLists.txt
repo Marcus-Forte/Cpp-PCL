@@ -4,6 +4,8 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 # 1) Install Qt5
 # 2) Compile VTK and set QtGroup ON
 # 3) Compile PCL and set VTK dir
+# 4) add libQVTKWidgetPlugin.so to /usr/lib/x86_64-linux-gnu/qt5/plugins/designer/
+
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release")
 set(CMAKE_INCLUDE_CURRENT_DIR ON)

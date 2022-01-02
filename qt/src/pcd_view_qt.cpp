@@ -70,7 +70,7 @@ PCDViewQt::PCDViewQt()
 
   // Create a timer
   vis_timer_ = new QTimer(this);
-  vis_timer_->start(5); // 5ms
+  vis_timer_->start(100); // 100ms
 
   connect(vis_timer_, SIGNAL(timeout()), this, SLOT(timeoutSlot()));
 
@@ -80,7 +80,7 @@ PCDViewQt::PCDViewQt()
   this->setWindowTitle("PCL PCD View");
 
   // Setup the cloud pointer
-  cloud_.reset(new pcl::PointCloud<pcl::PointXYZRGBA>);
+  cloud_.reset(new pcl::PointCloud<PointT>);
 
   // Create the QVTKWidget
 #if VTK_MAJOR_VERSION > 8
@@ -91,198 +91,97 @@ PCDViewQt::PCDViewQt()
 #else
   vis_.reset(new pcl::visualization::PCLVisualizer("", false));
 #endif // VTK_MAJOR_VERSION > 8
-  setRenderWindowCompat(*(ui_->qvtk_widget), *(vis_->getRenderWindow()));
-  vis_->setupInteractor(getInteractorCompat(*(ui_->qvtk_widget)),
-                        getRenderWindowCompat(*(ui_->qvtk_widget)));
+  // setRenderWindowCompat(*(ui_->qvtk_widget), *(vis_->getRenderWindow()));
+  // vis_->setupInteractor(getInteractorCompat(*(ui_->qvtk_widget)),
+  //                       getRenderWindowCompat(*(ui_->qvtk_widget)));
 
-  vis_->getInteractorStyle()->setKeyboardModifier(
-      pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
+  // vis_->getInteractorStyle()->setKeyboardModifier(
+  //     pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
+  // vis_->addCoordinateSystem(1.0);
+
+  auto renderer_ = vtkSmartPointer<vtkRenderer>::New();
+  auto renderWindow_ = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
+  renderWindow_->AddRenderer(renderer_);
+  // vis_dbg.reset(new pcl::visualization::PCLVisualizer(renderer_, renderWindow_, "view", true ));
+  vis_dbg.reset(new pcl::visualization::PCLVisualizer("view"));
+  
 
   refreshView();
 
   // Connect all buttons
-  connect(ui_->playButton, SIGNAL(clicked()), this, SLOT(playButtonPressed()));
-  connect(ui_->stopButton, SIGNAL(clicked()), this, SLOT(stopButtonPressed()));
-  connect(ui_->backButton, SIGNAL(clicked()), this, SLOT(backButtonPressed()));
-  connect(ui_->nextButton, SIGNAL(clicked()), this, SLOT(nextButtonPressed()));
-
-  connect(ui_->selectFolderButton,
-          SIGNAL(clicked()),
-          this,
-          SLOT(selectFolderButtonPressed()));
   connect(ui_->selectFilesButton,
           SIGNAL(clicked()),
           this,
           SLOT(selectFilesButtonPressed()));
-
-  connect(ui_->indexSlider,
-          SIGNAL(valueChanged(int)),
-          this,
-          SLOT(indexSliderValueChanged(int)));
 }
 
-void
-PCDViewQt::backButtonPressed()
-{
-  if (current_frame_ == 0) // Already in the beginning
-  {
-    PCL_DEBUG("[PCDVideoPlayer::nextButtonPressed] : reached the end\n");
-    current_frame_ = nr_of_frames_ - 1; // reset to end
-  }
-  else {
-    current_frame_--;
-    cloud_modified_ = true;
-    ui_->indexSlider->setSliderPosition(current_frame_); // Update the slider position
-  }
-}
-
-void
-PCDViewQt::nextButtonPressed()
-{
-  if (current_frame_ == (nr_of_frames_ - 1)) // Reached the end
-  {
-    PCL_DEBUG("[PCDVideoPlayer::nextButtonPressed] : reached the end\n");
-    current_frame_ = 0; // reset to beginning
-  }
-  else {
-    current_frame_++;
-    cloud_modified_ = true;
-    ui_->indexSlider->setSliderPosition(current_frame_); // Update the slider position
-  }
-}
-
-void
-PCDViewQt::selectFolderButtonPressed()
+void PCDViewQt::selectFilesButtonPressed()
 {
   pcd_files_.clear(); // Clear the std::vector
-  pcd_paths_.clear(); // Clear the boost filesystem paths
-
-  dir_ = QFileDialog::getExistingDirectory(this,
-                                           tr("Open Directory"),
-                                           "/home",
-                                           QFileDialog::ShowDirsOnly |
-                                               QFileDialog::DontResolveSymlinks | QFileDialog::DontUseNativeDialog);
-
-  boost::filesystem::directory_iterator end_itr;
-
-  if (boost::filesystem::is_directory(dir_.toStdString())) {
-    for (boost::filesystem::directory_iterator itr(dir_.toStdString()); itr != end_itr;
-         ++itr) {
-      std::string ext = itr->path().extension().string();
-      if (ext == ".pcd") {
-        pcd_files_.push_back(itr->path().string());
-        pcd_paths_.push_back(itr->path());
-      }
-      else {
-        // Found non pcd file
-        PCL_DEBUG(
-            "[PCDVideoPlayer::selectFolderButtonPressed] : found a different file\n");
-      }
-    }
-  }
-  else {
-    PCL_ERROR("Path is not a directory\n");
-    exit(-1);
-  }
-  nr_of_frames_ = pcd_files_.size();
-  PCL_DEBUG("[PCDVideoPlayer::selectFolderButtonPressed] : found %d files\n",
-            nr_of_frames_);
-
-  if (nr_of_frames_ == 0) {
-    PCL_ERROR("Please select valid pcd folder\n");
-    cloud_present_ = false;
-    return;
-  }
-  // Reset the Slider
-  ui_->indexSlider->setValue(0);                    // set cursor back in the beginning
-  ui_->indexSlider->setRange(0, nr_of_frames_ - 1); // rescale the slider
-
-  current_frame_ = 0;
-
-  cloud_present_ = true;
-  cloud_modified_ = true;
-}
-
-void
-PCDViewQt::selectFilesButtonPressed()
-{
-  pcd_files_.clear(); // Clear the std::vector
-  pcd_paths_.clear(); // Clear the boost filesystem paths
+  // pcd_paths_.clear(); // Clear the boost filesystem paths
 
   QStringList qt_pcd_files = QFileDialog::getOpenFileNames(
-      this, "Select one or more PCD files to open", "/home/marcus/", "PointClouds (*.pcd)",0, QFileDialog::DontUseNativeDialog);
+      this, "Select one or more PCD files to open", "/home/", "PointClouds (*.pcd)", 0, QFileDialog::DontUseNativeDialog);
   nr_of_frames_ = qt_pcd_files.size();
-  PCL_INFO("[PCDVideoPlayer::selectFilesButtonPressed] : selected %ld files\n",
+  PCL_INFO("[pcd_view::selectFilesButtonPressed] : selected %ld files\n",
            nr_of_frames_);
 
-  if (nr_of_frames_ == 0) {
+  if (nr_of_frames_ == 0)
+  {
     PCL_ERROR("Please select valid pcd files\n");
     cloud_present_ = false;
     return;
   }
 
-  for (int i = 0; i < qt_pcd_files.size(); i++) {
+  for (int i = 0; i < qt_pcd_files.size(); i++)
+  {
     pcd_files_.push_back(qt_pcd_files.at(i).toStdString());
   }
 
-  current_frame_ = 0;
+  // TODO automate
+  if (pcl::io::loadPCDFile<PointT>(pcd_files_[0], *cloud_) ==
+      -1) //* load the file
+  {
+    PCL_ERROR("[pcd_view_qt::?] : Couldn't read file %s\n");
+  }
 
-  // Reset the Slider
-  ui_->indexSlider->setValue(0);                    // set cursor back in the beginning
-  ui_->indexSlider->setRange(0, nr_of_frames_ - 1); // rescale the slider
+  PCL_INFO("Lodaded %s (%d points)\n", pcd_files_[0].c_str(), cloud_->size());
+  vis_dbg->addPointCloud<PointT>(cloud_, "cloud_");
+  // vis_dbg->resetCameraViewpoint("cloud_");
+  vis_dbg->spin();
 
-  cloud_present_ = true;
-  cloud_modified_ = true;
+  // if (!vis_->updatePointCloud(cloud_, "cloud_"))
+  {
+    vis_->addPointCloud<PointT>(cloud_, "cloud_");
+    vis_->resetCameraViewpoint("cloud_");
+  }
 }
 
-void
-PCDViewQt::timeoutSlot()
+void PCDViewQt::timeoutSlot()
 {
-  if (play_mode_) {
-    if (speed_counter_ == speed_value_) {
-      if (current_frame_ == (nr_of_frames_ - 1)) // Reached the end
-      {
-        current_frame_ = 0; // reset to beginning
-      }
-      else {
-        current_frame_++;
-        cloud_modified_ = true;
-        ui_->indexSlider->setSliderPosition(
-            current_frame_); // Update the slider position
-      }
-    }
-    else {
-      speed_counter_++;
-    }
-  }
+  // PCL_INFO("timer");
+  // std::cout << "time" << std::endl;
 
-  if (cloud_present_ && cloud_modified_) {
-    if (pcl::io::loadPCDFile<pcl::PointXYZRGBA>(pcd_files_[current_frame_], *cloud_) ==
-        -1) //* load the file
-    {
-      PCL_ERROR("[PCDVideoPlayer::timeoutSlot] : Couldn't read file %s\n");
-    }
+  // if (cloud_present_ && cloud_modified_)
+  // {
+  //   if (pcl::io::loadPCDFile<pcl::PointXYZRGBA>(pcd_files_[current_frame_], *cloud_) ==
+  //       -1) //* load the file
+  //   {
+  //     PCL_ERROR("[PCDVideoPlayer::timeoutSlot] : Couldn't read file %s\n");
+  //   }
 
-    if (!vis_->updatePointCloud(cloud_, "cloud_")) {
-      vis_->addPointCloud(cloud_, "cloud_");
-      vis_->resetCameraViewpoint("cloud_");
-    }
-    cloud_modified_ = false;
-  }
+  //   if (!vis_->updatePointCloud(cloud_, "cloud_"))
+  //   {
+  //     vis_->addPointCloud(cloud_, "cloud_");
+  //     vis_->resetCameraViewpoint("cloud_");
+  //   }
+  //   cloud_modified_ = false;
+  // }
 
   refreshView();
 }
 
-void
-PCDViewQt::indexSliderValueChanged(int value)
-{
-  PCL_DEBUG("[PCDVideoPlayer::indexSliderValueChanged] : (I) : value %d\n", value);
-  current_frame_ = value;
-  cloud_modified_ = true;
-}
-
-void
-PCDViewQt::refreshView()
+void PCDViewQt::refreshView()
 {
 #if VTK_MAJOR_VERSION > 8
   ui_->qvtk_widget->renderWindow()->Render();
@@ -291,19 +190,10 @@ PCDViewQt::refreshView()
 #endif // VTK_MAJOR_VERSION > 8
 }
 
-void
-print_usage()
+void print_usage()
 {
   // clang-format off
-  PCL_INFO ("PCDVideoPlayer V0.1\n");
-  PCL_INFO ("-------------------\n");
-  PCL_INFO ("\tThe slider accepts focus on Tab and provides both a mouse wheel and a keyboard interface. The keyboard interface is the following:\n");
-  PCL_INFO ("\t  Left/Right move a horizontal slider by one single step.\n");
-  PCL_INFO ("\t  Up/Down move a vertical slider by one single step.\n");
-  PCL_INFO ("\t  PageUp moves up one page.\n");
-  PCL_INFO ("\t  PageDown moves down one page.\n");
-  PCL_INFO ("\t  Home moves to the start (minimum).\n");
-  PCL_INFO ("\t  End moves to the end (maximum).\n");
+  PCL_INFO ("Pcd_view V0.1\n");
+
   // clang-format on
 }
-

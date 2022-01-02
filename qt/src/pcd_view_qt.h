@@ -53,9 +53,6 @@
 
 #define CURRENT_VERSION 0.2
 
-
-
-
 // Useful macros
 // clang-format off
 #define FPS_CALC(_WHAT_)                                                               \
@@ -73,14 +70,17 @@
   } while (false)
 // clang-format on
 
-namespace Ui {
-class MainWindow;
+namespace Ui
+{
+  class MainWindow;
 }
 
-class PCDViewQt : public QMainWindow {
+class PCDViewQt : public QMainWindow
+{
   Q_OBJECT
 public:
-  using Cloud = pcl::PointCloud<pcl::PointXYZRGBA>;
+  using PointT = pcl::PointXYZI;
+  using Cloud = pcl::PointCloud<PointT>;
   using CloudPtr = Cloud::Ptr;
   using CloudConstPtr = Cloud::ConstPtr;
 
@@ -93,17 +93,19 @@ protected:
   refreshView();
 
   pcl::visualization::PCLVisualizer::Ptr vis_;
-  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_;
+
+  pcl::visualization::PCLVisualizer::Ptr vis_dbg;
+  CloudPtr cloud_;
 
   QMutex mtx_;
   QMutex vis_mtx_;
-  Ui::MainWindow* ui_;
-  QTimer* vis_timer_;
+  Ui::MainWindow *ui_;
+  QTimer *vis_timer_;
 
   QString dir_;
 
   std::vector<std::string> pcd_files_;
-  std::vector<boost::filesystem::path> pcd_paths_;
+  // std::vector<boost::filesystem::path> pcd_paths_;
 
   /** \brief The current displayed frame */
   unsigned int current_frame_;
@@ -126,32 +128,10 @@ protected:
   unsigned int speed_value_;
 
 public Q_SLOTS:
-  void
-  playButtonPressed()
-  {
-    play_mode_ = true;
-  }
-
-  void
-  stopButtonPressed()
-  {
-    play_mode_ = false;
-  }
-
-  void
-  backButtonPressed();
-
-  void
-  nextButtonPressed();
-
-  void
-  selectFolderButtonPressed();
 
   void
   selectFilesButtonPressed();
 
-  void
-  indexSliderValueChanged(int value);
 
 private Q_SLOTS:
   void

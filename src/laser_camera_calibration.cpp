@@ -72,7 +72,8 @@ void ppCallback(const pcl::visualization::PointPickingEvent &event, void *cookie
     for (int i = 0; i < pointList.size(); ++i)
     {
         viewer.addText3D(std::to_string(i + 1), pointList[i], 0.1);
-        viewer.addSphere(pointList[i], 0.05, 1, 0, 0, "s" + std::to_string(i + 1));
+        viewer.addSphere(pointList[i], 0.01, 1, 0, 0, "s" + std::to_string(i + 1));
+        // TODO add point coordinate text 
     }
 }
 
@@ -109,13 +110,14 @@ int main(int argc, char **argv)
     }
 
     // viewer.addRGBImage()
-    pcl::visualization::ImageViewer::Ptr viewer(new pcl::visualization::ImageViewer);
+    // pcl::visualization::ImageViewer::Ptr viewer(new pcl::visualization::ImageViewer);
     
     pcl::visualization::PCLVisualizer::Ptr c_viewer(new pcl::visualization::PCLVisualizer);
     // pcl::visualization::CloudViewer::Ptr c_viewer (new  pcl::visualization::CloudViewer("cloud"));
 
-    viewer->addRGBImage(reinterpret_cast<unsigned char const *>(img.data), img.cols, img.rows);
-    viewer->registerMouseCallback(mouseCallbackImg, &viewer);
+    // viewer->addRGBImage(reinterpret_cast<unsigned char const *>(img.data), img.cols, img.rows);
+    // viewer->registerMouseCallback(mouseCallbackImg, &viewer);
+    
 
     Eigen::Vector4f origin = Eigen::Vector4f::Zero();
     Eigen::Quaternionf orientation = Eigen::Quaternionf::Identity();
@@ -144,10 +146,11 @@ int main(int argc, char **argv)
 
     c_viewer->registerPointPickingCallback(ppCallback, &c_viewer);
     c_viewer->registerMouseCallback(mouseCallbackPC, &c_viewer);
+    c_viewer->addCoordinateSystem();
 
-    while (!viewer->wasStopped() && !c_viewer->wasStopped())
+    while (1 && !c_viewer->wasStopped())
     {
-        viewer->spinOnce();
+        // viewer->spinOnce();
         c_viewer->spinOnce();
     }
 
