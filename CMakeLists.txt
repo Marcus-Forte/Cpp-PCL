@@ -14,7 +14,7 @@ set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/lib)
 
 find_package(PCL 1.10 REQUIRED)
 
-# add_definitions(${PCL_DEFINITIONS})
+find_package(OpenMP)
 
 
 # find_package(PCL 1.12 PATHS /home/marcus/Software/pcl/build/install/share/pcl-1.12 REQUIRED)
@@ -39,7 +39,7 @@ add_subdirectory(volume)
 add_subdirectory(cuda)
 add_subdirectory(registration)
 add_subdirectory(tests)
-add_subdirectory(qt)
+# add_subdirectory(qt)
 
 
 
@@ -57,6 +57,8 @@ add_executable(geocrop src/geocrop.cpp)
 add_executable(subsample src/subsample.cpp)
 add_executable(segmentation src/segmentation.cpp)
 
+add_executable(convert2xyz src/convert2xyz.cpp)
+
 
 # converter
 add_executable(extconverter src/extconverter.cpp)
@@ -67,7 +69,7 @@ target_link_libraries(filters Utils)
 target_link_libraries(geocrop Utils)
 target_link_libraries(visualize Utils)
 target_link_libraries(laser_camera_calibration ${OpenCV_LIBRARIES})
- 
+target_link_libraries(convert2xyz OpenMP::OpenMP_CXX) 
 
 
 
