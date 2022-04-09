@@ -5,10 +5,8 @@ set (CMAKE_BUILD_TYPE Release)
 
 
  # test
-add_executable(color_registration src/color_registration.cpp)
-
-
-target_link_libraries(color_registration ${PCL_LIBRARIES})
+add_executable(feature_registration src/feature_registration.cpp)
+target_link_libraries(feature_registration ${PCL_LIBRARIES})
 
 # installation
 
